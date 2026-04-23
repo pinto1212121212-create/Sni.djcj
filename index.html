@@ -56,7 +56,428 @@ h1{text-align:center;font-size:22px;margin-bottom:4px;color:#5eead4}
 .edit-cancel{flex:1;background:#334155;border:none;border-radius:10px;padding:13px;color:white;font-weight:700;cursor:pointer;font-family:inherit}
 .edit-status{font-size:12px;color:#5eead4;text-align:center;min-height:16px;margin-top:6px}
 </style>
-</head>
+
+  <!-- Security Headers -->
+  <meta http-equiv="X-Content-Type-Options" content="nosniff">
+  <meta http-equiv="X-Frame-Options" content="DENY">
+  <meta http-equiv="Referrer-Policy" content="strict-origin-when-cross-origin">
+  <meta http-equiv="Permissions-Policy" content="geolocation=(), microphone=(), camera=(), payment=()">
+  <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
+  <meta http-equiv="Pragma" content="no-cache">
+  <meta http-equiv="Expires" content="0">
+  <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline'; font-src 'self' data:; img-src 'self' data: blob: https:; connect-src 'self' https://identitytoolkit.googleapis.com https://securetoken.googleapis.com https://api.github.com https://raw.githubusercontent.com; media-src 'self' blob:; frame-ancestors 'none'; base-uri 'self'; form-action 'self'; object-src 'none'; upgrade-insecure-requests">
+
+  <!-- Rate Limit -->
+  <script>
+  window.__rateLimit = {
+    _key: 'rl_' + location.pathname,
+    _max: 5,
+    _window: 3600000,
+    check(){
+      const d = this._load();
+      if(d.blockedUntil && Date.now() < d.blockedUntil){
+        const m = Math.ceil((d.blockedUntil - Date.now())/60000);
+        throw new Error('חסום למשך ' + m + ' דקות');
+      }
+      return true;
+    },
+    fail(){const d=this._load(); d.fails=(d.fails||0)+1; if(d.fails>=this._max){d.blockedUntil=Date.now()+this._window; d.fails=0;} this._save(d); return this._max-d.fails;},
+    success(){this._save({fails:0, blockedUntil:0});},
+    _load(){try{return JSON.parse(localStorage.getItem(this._key)||'{"fails":0}');}catch(e){return {fails:0};}},
+    _save(d){try{localStorage.setItem(this._key, JSON.stringify(d));}catch(e){}}
+  };
+  </script>
+  <!-- Audit Log -->
+  <script>
+  (function(){
+    const KEY = 'audit_' + location.pathname;
+    window.__audit = function(ev, data){
+      try{
+        const log = JSON.parse(localStorage.getItem(KEY)||'[]');
+        log.push({t: Date.now(), e: ev, d: data||null});
+        while(log.length > 500) log.shift();
+        localStorage.setItem(KEY, JSON.stringify(log));
+      }catch(e){}
+    };
+    window.__audit('page_loaded');
+  })();
+  </script>
+  <!-- Device Fingerprint -->
+  <script>
+  window.__fingerprint = async function(){
+    const data = navigator.userAgent + '|' + navigator.language + '|' + screen.width + 'x' + screen.height + '|' + (navigator.hardwareConcurrency||'') + '|' + new Date().getTimezoneOffset();
+    const buf = new TextEncoder().encode(data);
+    const hash = await crypto.subtle.digest('SHA-256', buf);
+    return Array.from(new Uint8Array(hash)).map(b => b.toString(16).padStart(2,'0')).join('').substring(0,16);
+  };
+  </script>
+  <!-- Encrypted localStorage -->
+  <script>
+  window.__encLS = (function(){
+    let _key = null;
+    async function deriveKey(pw){
+      const enc = new TextEncoder();
+      const km = await crypto.subtle.importKey('raw', enc.encode(pw), 'PBKDF2', false, ['deriveKey']);
+      return crypto.subtle.deriveKey({name:'PBKDF2', salt: enc.encode('armor-salt-v1'), iterations:100000, hash:'SHA-256'}, km, {name:'AES-GCM', length:256}, false, ['encrypt','decrypt']);
+    }
+    return {
+      init: async function(pw){_key = await deriveKey(pw);},
+      set: async function(k, v){
+        if(!_key) throw new Error('Not initialized');
+        const iv = crypto.getRandomValues(new Uint8Array(12));
+        const ct = await crypto.subtle.encrypt({name:'AES-GCM', iv}, _key, new TextEncoder().encode(v));
+        const combined = new Uint8Array(iv.length + ct.byteLength);
+        combined.set(iv);
+        combined.set(new Uint8Array(ct), iv.length);
+        localStorage.setItem(k, btoa(String.fromCharCode(...combined)));
+      },
+      get: async function(k){
+        if(!_key) throw new Error('Not initialized');
+        const stored = localStorage.getItem(k);
+        if(!stored) return null;
+        const data = Uint8Array.from(atob(stored), c => c.charCodeAt(0));
+        const iv = data.slice(0, 12);
+        const ct = data.slice(12);
+        const pt = await crypto.subtle.decrypt({name:'AES-GCM', iv}, _key, ct);
+        return new TextDecoder().decode(pt);
+      }
+    };
+  })();
+  </script>
+  <!-- Auto-clear clipboard -->
+  <script>
+  window.__safeCopy = function(text, clearAfterMs){
+    navigator.clipboard.writeText(text).then(() => {
+      setTimeout(() => {navigator.clipboard.writeText(' ').catch(()=>{});}, clearAfterMs || 30000);
+    });
+  };
+  </script>
+  <!-- Session Timeout -->
+  <script>
+  (function(){
+    const TIMEOUT = 1800000; // 30 min
+    let lastActivity = Date.now();
+    ['click','keydown','scroll','mousemove','touchstart'].forEach(ev => document.addEventListener(ev, () => {lastActivity = Date.now();}, {passive:true}));
+    setInterval(() => {
+      if(Date.now() - lastActivity > TIMEOUT){
+        if(window.__audit) window.__audit('session_timeout');
+        alert('⏰ פג תוקף הסשן בגלל חוסר פעילות. הדף יטען מחדש.');
+        sessionStorage.clear();
+        location.reload();
+      }
+    }, 30000);
+  })();
+  </script>
+  <!-- Anti-debug -->
+  <script>
+  (function(){
+    document.addEventListener('keydown', function(e){
+      if(e.key === 'F12' || ((e.ctrlKey||e.metaKey) && e.shiftKey && ['I','J','C'].includes(e.key)) || ((e.ctrlKey||e.metaKey) && e.key === 'u'))e.preventDefault();
+    });
+    document.addEventListener('contextmenu', e => e.preventDefault());
+    let dt = false;
+    setInterval(() => {
+      if(window.outerWidth - window.innerWidth > 160 || window.outerHeight - window.innerHeight > 160){
+        if(!dt){dt = true; if(window.__audit)window.__audit('devtools_opened');}
+      }
+    }, 1000);
+  })();
+  </script>
+  <!-- Firebase Auth Gate with SMS 2FA -->
+  
+  <style>
+  #__auth_overlay{position:fixed;inset:0;background:#0a0805;z-index:999999;display:flex;align-items:center;justify-content:center;padding:20px;font-family:-apple-system,sans-serif;direction:rtl}
+  #__auth_box{max-width:400px;width:100%;background:rgba(255,255,255,0.04);border:1px solid rgba(255,255,255,0.1);border-radius:16px;padding:20px}
+  #__auth_box h2{color:#fbab20;text-align:center;margin:0 0 14px;font-size:20px}
+  #__auth_box input{width:100%;background:rgba(255,255,255,0.06);border:1px solid rgba(255,255,255,0.15);border-radius:8px;color:#fff;padding:12px;font-size:14px;margin-bottom:10px;font-family:inherit;box-sizing:border-box}
+  #__auth_box button{width:100%;background:linear-gradient(135deg,#10b981,#059669);color:#fff;border:none;padding:14px;border-radius:10px;font-size:15px;font-weight:800;cursor:pointer;margin-top:6px;font-family:inherit}
+  #__auth_box .tab{display:flex;gap:4px;margin-bottom:14px;background:rgba(0,0,0,0.25);padding:3px;border-radius:10px}
+  #__auth_box .tab button{background:transparent;padding:10px;font-size:13px;font-weight:700}
+  #__auth_box .tab button.active{background:rgba(251,171,32,0.2);color:#fbab20}
+  #__auth_err{color:#fca5a5;font-size:13px;text-align:center;margin-top:8px;min-height:18px}
+  #__auth_ok{color:#6ee7b7;font-size:13px;text-align:center;margin-top:8px}
+  #__auth_bio{background:linear-gradient(135deg,#7c3aed,#5b21b6)!important;margin-top:10px}
+  #__sms_wrap{display:none;margin-top:14px;padding-top:14px;border-top:1px solid rgba(255,255,255,0.1)}
+  #__sms_wrap.show{display:block}
+  #__sms_info{color:#fcd34d;font-size:13px;text-align:center;margin-bottom:10px}
+  #__recaptcha{margin:10px 0;display:flex;justify-content:center}
+  </style>
+  <script>
+  (function(){
+    const FB_API = 'AIzaSyCsh6qM-WgbWn1LHx2FTVio35ZPvMQ0aG4';
+    const FB_DB = 'https://diary-daniel-rinat-default-rtdb.firebaseio.com';
+    const APP_PATH = 'deploy_panel';
+    const INVITE_CODE = "#Deploy2026!";
+    const WITH_BIO = true;
+    const WITH_SMS = false;
+    const SMS_COUNTRY = '+972';
+    const SMS_EXPIRE_MIN = 5;
+    const AUTH_KEY = 'armor_auth_token_' + APP_PATH;
+    const PHONE_KEY = 'armor_phone_' + APP_PATH;
+    
+    // Check if already authenticated
+    try{
+      const saved = JSON.parse(localStorage.getItem(AUTH_KEY) || 'null');
+      if(saved && saved.exp > Date.now()){
+        if(window.__audit) window.__audit('auto_login', saved.email);
+        return;
+      }
+    }catch(e){}
+    
+    document.documentElement.style.visibility = 'hidden';
+    
+    let pendingLogin = null; // {email, pw, idToken, ...}
+    let smsSessionInfo = null;
+    let recaptchaWidget = null;
+    
+    function show(){
+      const ov = document.createElement('div');
+      ov.id = '__auth_overlay';
+      let tabs = '<button type="button" class="active" data-t="login">כניסה</button><button type="button" data-t="signup">הרשמה</button><button type="button" data-t="reset">שכחתי</button>';
+      let html = '<div id="__auth_box"><h2>🔒 כניסה מאובטחת</h2><div class="tab">' + tabs + '</div>' +
+        '<div id="__tab_login"><input type="email" id="__em" placeholder="email" autocomplete="email"><input type="password" id="__pw" placeholder="סיסמה" autocomplete="current-password"><button type="button" id="__doLogin">כניסה</button>' +
+        (WITH_BIO ? '<button type="button" id="__auth_bio">👆 כניסה עם טביעת אצבע</button>' : '') +
+        '</div>' +
+        '<div id="__tab_signup" style="display:none"><input type="email" id="__em2" placeholder="email"><input type="password" id="__pw2" placeholder="סיסמה (8+ תווים, אותיות+מספרים)" autocomplete="new-password">' +
+        (WITH_SMS ? '<input type="tel" id="__phone2" placeholder="מספר טלפון (0501234567)">' : '') +
+        (INVITE_CODE ? '<input type="text" id="__inv" placeholder="קוד הזמנה">' : '') +
+        '<button type="button" id="__doSignup">הירשם</button></div>' +
+        '<div id="__tab_reset" style="display:none"><input type="email" id="__em3" placeholder="email"><button type="button" id="__doReset">שלח קישור איפוס</button></div>' +
+        (WITH_SMS ? '<div id="__sms_wrap"><div id="__sms_info">📱 שולח SMS...</div><div id="__recaptcha"></div><input type="text" id="__sms_code" placeholder="קוד SMS (6 ספרות)" inputmode="numeric" maxlength="6"><button type="button" id="__verifySms">אמת קוד</button><button type="button" id="__resendSms" style="background:linear-gradient(135deg,#6b7280,#4b5563);margin-top:4px">📲 שלח SMS מחדש</button></div>' : '') +
+        '<div id="__auth_err"></div><div id="__auth_ok"></div></div>';
+      ov.innerHTML = html;
+      document.body.appendChild(ov);
+      document.documentElement.style.visibility = '';
+      
+      function showTab(name){
+        ['login','signup','reset'].forEach(t => {
+          document.getElementById('__tab_' + t).style.display = t === name ? '' : 'none';
+        });
+        document.querySelectorAll('#__auth_overlay .tab button').forEach(b => {
+          b.classList.toggle('active', b.dataset.t === name);
+        });
+        if(WITH_SMS) document.getElementById('__sms_wrap').classList.remove('show');
+      }
+      document.querySelectorAll('#__auth_overlay .tab button').forEach(b => {
+        b.onclick = () => showTab(b.dataset.t);
+      });
+      
+      const errEl = document.getElementById('__auth_err');
+      const okEl = document.getElementById('__auth_ok');
+      const setErr = m => {errEl.textContent = m; okEl.textContent='';};
+      const setOk = m => {okEl.textContent = m; errEl.textContent='';};
+      
+      function normalizePhone(phone){
+        phone = phone.replace(/[\s\-\(\)]/g, '');
+        if(phone.startsWith('+')) return phone;
+        if(phone.startsWith('0')) return SMS_COUNTRY + phone.substring(1);
+        return SMS_COUNTRY + phone;
+      }
+      
+      async function sendSMS(phone){
+        if(!window.grecaptcha){
+          throw new Error('reCAPTCHA לא נטען. רענן את העמוד.');
+        }
+        return new Promise((resolve, reject) => {
+          try{
+            // Render invisible recaptcha
+            if(recaptchaWidget === null){
+              recaptchaWidget = grecaptcha.render('__recaptcha', {
+                sitekey: '6LeIxAcTAAAAAJcZVRqyHh71UMIEGNQ_MXjiZKhI', // Firebase public test key
+                size: 'invisible',
+                callback: async (token) => {
+                  try{
+                    const r = await fetch('https://identitytoolkit.googleapis.com/v1/accounts:sendVerificationCode?key=' + FB_API, {
+                      method:'POST', headers:{'Content-Type':'application/json'},
+                      body: JSON.stringify({phoneNumber: phone, recaptchaToken: token})
+                    });
+                    const d = await r.json();
+                    if(!r.ok) throw new Error(d.error?.message || 'SMS failed');
+                    resolve(d.sessionInfo);
+                  }catch(e){reject(e);}
+                }
+              });
+            }
+            grecaptcha.execute(recaptchaWidget);
+          }catch(e){reject(e);}
+        });
+      }
+      
+      async function verifySMS(sessionInfo, code, idToken){
+        const r = await fetch('https://identitytoolkit.googleapis.com/v1/accounts:signInWithPhoneNumber?key=' + FB_API, {
+          method:'POST', headers:{'Content-Type':'application/json'},
+          body: JSON.stringify({sessionInfo, code, idToken})
+        });
+        const d = await r.json();
+        if(!r.ok) throw new Error(d.error?.message || 'קוד SMS שגוי');
+        return d;
+      }
+      
+      async function getUserPhone(idToken){
+        try{
+          // Fetch user's stored phone from Firebase RTDB
+          const r = await fetch(FB_DB + '/' + APP_PATH + '/phones.json?auth=' + encodeURIComponent(idToken));
+          if(!r.ok) return null;
+          return await r.json();
+        }catch(e){return null;}
+      }
+      
+      async function completeLogin(email, uid, idToken, refreshToken, expiresIn){
+        localStorage.setItem(AUTH_KEY, JSON.stringify({token: idToken, refresh: refreshToken, email, uid, exp: Date.now() + parseInt(expiresIn)*1000}));
+        if(window.__rateLimit) window.__rateLimit.success();
+        if(window.__audit) window.__audit('login_success', email);
+        ov.remove();
+        setTimeout(() => location.reload(), 100);
+      }
+      
+      async function doLogin(email, pw){
+        if(window.__rateLimit){try{window.__rateLimit.check();}catch(e){setErr(e.message); return;}}
+        try{
+          const r = await fetch('https://identitytoolkit.googleapis.com/v1/accounts:signInWithPassword?key=' + FB_API, {
+            method:'POST', headers:{'Content-Type':'application/json'},
+            body: JSON.stringify({email, password: pw, returnSecureToken: true})
+          });
+          const d = await r.json();
+          if(!r.ok) throw new Error(d.error?.message || 'שגיאה');
+          
+          if(WITH_SMS){
+            // Get user's phone from DB
+            const phones = await getUserPhone(d.idToken);
+            const userPhone = phones && phones[d.localId] ? phones[d.localId] : null;
+            if(!userPhone){
+              // User registered before SMS was required - log them in but warn
+              setErr('⚠️ אין מספר טלפון רשום. התחברות ללא 2FA (פעם אחת)');
+              setTimeout(() => completeLogin(d.email, d.localId, d.idToken, d.refreshToken, d.expiresIn), 1500);
+              return;
+            }
+            
+            // SMS step required
+            pendingLogin = {email: d.email, uid: d.localId, idToken: d.idToken, refreshToken: d.refreshToken, expiresIn: d.expiresIn, phone: userPhone};
+            setOk('✅ הסיסמה נכונה, שולח SMS...');
+            try{
+              smsSessionInfo = await sendSMS(userPhone);
+              document.getElementById('__sms_wrap').classList.add('show');
+              document.getElementById('__sms_info').textContent = '📱 נשלח SMS ל-' + userPhone.replace(/(.{4})(.+)(.{4})/,'$1****$3');
+              setOk('');
+            }catch(e){setErr('❌ שליחת SMS נכשלה: ' + e.message);}
+            return;
+          }
+          
+          if(window.__encLS){try{await window.__encLS.init(pw);}catch(e){}}
+          await completeLogin(d.email, d.localId, d.idToken, d.refreshToken, d.expiresIn);
+        }catch(e){
+          if(window.__rateLimit) window.__rateLimit.fail();
+          if(window.__audit) window.__audit('login_fail', email);
+          setErr('❌ ' + e.message);
+        }
+      }
+      
+      document.getElementById('__doLogin').onclick = () => {
+        const em = document.getElementById('__em').value.trim();
+        const pw = document.getElementById('__pw').value;
+        if(!em || !pw){setErr('מלא הכל'); return;}
+        doLogin(em, pw);
+      };
+      
+      if(WITH_SMS){
+        document.getElementById('__verifySms').onclick = async () => {
+          const code = document.getElementById('__sms_code').value.trim();
+          if(!code || code.length !== 6){setErr('❌ קוד SMS: 6 ספרות'); return;}
+          if(!smsSessionInfo || !pendingLogin){setErr('❌ שגיאה: אין sessionInfo. נסה להיכנס שוב'); return;}
+          try{
+            await verifySMS(smsSessionInfo, code, pendingLogin.idToken);
+            if(window.__audit) window.__audit('sms_verified', pendingLogin.email);
+            await completeLogin(pendingLogin.email, pendingLogin.uid, pendingLogin.idToken, pendingLogin.refreshToken, pendingLogin.expiresIn);
+          }catch(e){setErr('❌ ' + e.message);}
+        };
+        document.getElementById('__resendSms').onclick = async () => {
+          if(!pendingLogin) return;
+          setOk('⏳ שולח שוב...');
+          try{
+            smsSessionInfo = await sendSMS(pendingLogin.phone);
+            setOk('✅ נשלח SMS חדש');
+          }catch(e){setErr('❌ ' + e.message);}
+        };
+      }
+      
+      document.getElementById('__doSignup').onclick = async () => {
+        const em = document.getElementById('__em2').value.trim();
+        const pw = document.getElementById('__pw2').value;
+        const inv = INVITE_CODE ? document.getElementById('__inv').value.trim() : '';
+        const phone = WITH_SMS ? document.getElementById('__phone2').value.trim() : '';
+        if(!em || !pw){setErr('מלא הכל'); return;}
+        if(WITH_SMS && !phone){setErr('❌ חובה מספר טלפון'); return;}
+        if(INVITE_CODE && inv !== INVITE_CODE){setErr('❌ קוד הזמנה שגוי'); return;}
+        if(pw.length < 8){setErr('❌ סיסמה: 8+ תווים'); return;}
+        if(!/[a-zA-Z]/.test(pw) || !/[0-9]/.test(pw)){setErr('❌ סיסמה: אותיות + מספרים'); return;}
+        try{
+          const r = await fetch('https://identitytoolkit.googleapis.com/v1/accounts:signUp?key=' + FB_API, {
+            method:'POST', headers:{'Content-Type':'application/json'},
+            body: JSON.stringify({email: em, password: pw, returnSecureToken: true})
+          });
+          const d = await r.json();
+          if(!r.ok) throw new Error(d.error?.message || 'שגיאה');
+          
+          if(WITH_SMS){
+            // Save phone number in Firebase DB
+            const normalizedPhone = normalizePhone(phone);
+            try{
+              await fetch(FB_DB + '/' + APP_PATH + '/phones/' + d.localId + '.json?auth=' + encodeURIComponent(d.idToken), {
+                method:'PUT', headers:{'Content-Type':'application/json'},
+                body: JSON.stringify(normalizedPhone)
+              });
+            }catch(e){console.error('Failed to save phone:', e);}
+            if(window.__audit) window.__audit('signup_with_sms', em);
+          }else{
+            if(window.__audit) window.__audit('signup', em);
+          }
+          setOk('✅ נרשמת! מתחבר...');
+          setTimeout(() => doLogin(em, pw), 800);
+        }catch(e){setErr('❌ ' + e.message);}
+      };
+      
+      document.getElementById('__doReset').onclick = async () => {
+        const em = document.getElementById('__em3').value.trim();
+        if(!em){setErr('הכנס email'); return;}
+        try{
+          const r = await fetch('https://identitytoolkit.googleapis.com/v1/accounts:sendOobCode?key=' + FB_API, {
+            method:'POST', headers:{'Content-Type':'application/json'},
+            body: JSON.stringify({requestType:'PASSWORD_RESET', email: em})
+          });
+          const d = await r.json();
+          if(!r.ok) throw new Error(d.error?.message || 'שגיאה');
+          if(window.__audit) window.__audit('reset_sent', em);
+          setOk('✅ מייל נשלח! בדוק את תיבת הדואר');
+        }catch(e){setErr('❌ ' + e.message);}
+      };
+      
+      if(WITH_BIO && navigator.credentials && window.PublicKeyCredential){
+        const bioBtn = document.getElementById('__auth_bio');
+        const bioData = localStorage.getItem('armor_bio_' + APP_PATH);
+        if(!bioData) bioBtn.style.display = 'none';
+        else bioBtn.onclick = async () => {
+          try{
+            const info = JSON.parse(bioData);
+            const chal = crypto.getRandomValues(new Uint8Array(32));
+            const cred = await navigator.credentials.get({
+              publicKey: {
+                challenge: chal,
+                allowCredentials: [{id: Uint8Array.from(atob(info.id), c => c.charCodeAt(0)), type:'public-key'}],
+                timeout: 60000,
+                userVerification: 'required'
+              }
+            });
+            if(cred) await doLogin(info.email, info.pw);
+          }catch(e){setErr('❌ ביומטרי נכשל: ' + e.message);}
+        };
+      }
+    }
+    
+    if(document.readyState === 'loading'){
+      document.addEventListener('DOMContentLoaded', show);
+    }else{show();}
+  })();
+  </script></head>
 <body>
 
 <h1>🚀 לוח פרסום</h1>
