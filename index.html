@@ -363,6 +363,7 @@ const auth={
 
   async signIn(email,password){
     rateLimit.check();
+    email=(email||'').trim().toLowerCase();
     const r=await fetch('https://identitytoolkit.googleapis.com/v1/accounts:signInWithPassword?key='+FB_API_KEY,{
       method:'POST',
       headers:{'Content-Type':'application/json'},
@@ -376,7 +377,7 @@ const auth={
     }
     rateLimit.success();
     const d=await r.json();
-    if(d.email!==ALLOWED_EMAIL){
+    if((d.email||'').toLowerCase()!==ALLOWED_EMAIL){
       throw new Error('אין לך הרשאה ללוח הפרסום');
     }
     let name=d.email;
@@ -401,6 +402,7 @@ const auth={
 
   async signUp(email,password,name,inviteCode){
     rateLimit.check();
+    email=(email||'').trim().toLowerCase();
     if(email!==ALLOWED_EMAIL) throw new Error('אין לך הרשאה להירשם ללוח הפרסום');
     if(inviteCode!==INVITE_CODE) throw new Error('קוד הזמנה לא נכון');
     if(!name||name.trim().length<2) throw new Error('חובה למלא שם');
