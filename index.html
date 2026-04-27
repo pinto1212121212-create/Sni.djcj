@@ -3,895 +3,424 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
-<title>🛡️ שריון מבודד — Namespace מוחלט</title>
+<title>🚀 לוח פרסום</title>
 <style>
-*{box-sizing:border-box}
-body{background:linear-gradient(180deg,#0a0805,#1a0f05);color:#fff;font-family:-apple-system,sans-serif;margin:0;padding:16px;direction:rtl;min-height:100vh}
-.box{max-width:560px;margin:0 auto}
-h1{background:linear-gradient(135deg,#fbab20,#fdb849);-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text;font-size:24px;margin:0 0 6px;text-align:center;font-weight:900}
-.sub{color:rgba(255,255,255,0.65);font-size:13px;margin-bottom:14px;text-align:center;line-height:1.6}
-
-.warn{background:linear-gradient(135deg,rgba(239,68,68,0.12),rgba(220,38,38,0.04));border:2px solid rgba(239,68,68,0.5);border-radius:12px;padding:13px;margin-bottom:14px;font-size:13px;color:#fca5a5;line-height:1.65}
-.warn b{color:#fecaca}
-
-.drop{background:rgba(255,255,255,0.03);border:2px dashed rgba(251,171,32,0.4);border-radius:14px;padding:28px 16px;text-align:center;cursor:pointer;margin-bottom:14px;transition:all 0.2s}
-.drop:hover,.drop.active{border-color:#fbab20;background:rgba(251,171,32,0.06)}
-.drop-icon{font-size:40px;margin-bottom:8px}
-.drop-title{font-size:16px;font-weight:800;color:#fbab20;margin-bottom:4px}
-.drop-sub{font-size:12px;color:rgba(255,255,255,0.5)}
-
-.report{display:none;background:rgba(255,255,255,0.04);border:1px solid rgba(255,255,255,0.1);border-radius:12px;padding:14px;margin-bottom:14px}
-.report.show{display:block}
-.report-ttl{color:#fbab20;font-weight:800;font-size:15px;margin-bottom:10px;text-align:center}
-.report-item{display:flex;align-items:center;gap:10px;padding:8px 10px;border-radius:8px;margin-bottom:4px;font-size:13px}
-.report-item.yes{background:rgba(16,185,129,0.08);color:#6ee7b7}
-.report-item.no{background:rgba(239,68,68,0.06);color:#fca5a5}
-.report-item .status{font-size:18px;flex-shrink:0}
-.report-item .label{flex:1}
-.report-item .note{font-size:11px;opacity:0.7}
-
-.ns-config{background:linear-gradient(135deg,rgba(124,58,237,0.15),rgba(91,33,182,0.08));border:2px solid #7c3aed;border-radius:14px;padding:16px;margin-bottom:14px;display:none}
-.ns-config.show{display:block}
-.ns-config h3{color:#c4b5fd;margin:0 0 10px;font-size:16px;text-align:center}
-.ns-config .critical{background:rgba(239,68,68,0.08);border:1px solid rgba(239,68,68,0.35);border-radius:8px;padding:10px;margin-bottom:12px;font-size:12px;color:#fca5a5;line-height:1.55}
-.ns-config .critical b{color:#fecaca}
-.ns-config label{display:block;font-size:12.5px;font-weight:700;margin-bottom:4px;color:#c4b5fd;margin-top:10px}
-.ns-config label:first-of-type{margin-top:0}
-.ns-config input{width:100%;background:rgba(0,0,0,0.4);border:1px solid rgba(255,255,255,0.15);border-radius:6px;color:#fff;padding:10px;font-size:13px;font-family:inherit}
-.ns-config .hint{font-size:11px;color:rgba(255,255,255,0.55);margin-top:3px;line-height:1.5}
-.ns-config .preview{background:rgba(0,0,0,0.5);border:1px solid rgba(16,185,129,0.3);border-radius:8px;padding:10px;margin-top:10px;font-family:monospace;font-size:11px;color:#6ee7b7;line-height:1.6;direction:ltr;text-align:left}
-.ns-config .preview-ttl{color:#fbab20;font-weight:800;font-size:11px;margin-bottom:6px;text-align:right;direction:rtl}
-
-.collision-check{display:none;padding:10px;border-radius:8px;margin-top:8px;font-size:12px;font-weight:700;text-align:center}
-.collision-check.show{display:block}
-.collision-check.ok{background:rgba(16,185,129,0.1);border:1px solid #10b981;color:#6ee7b7}
-.collision-check.bad{background:rgba(239,68,68,0.12);border:1px solid #ef4444;color:#fca5a5}
-.collision-check.checking{background:rgba(251,171,32,0.1);border:1px solid #fbab20;color:#fcd34d}
-
-.layer-group{background:rgba(255,255,255,0.04);border:1px solid rgba(255,255,255,0.1);border-radius:12px;padding:14px;margin-bottom:12px}
-.layer-ttl{color:#fbab20;font-weight:800;font-size:14px;margin-bottom:10px}
-.opt{display:flex;align-items:flex-start;padding:10px;background:rgba(0,0,0,0.25);border-radius:8px;margin-bottom:6px;cursor:pointer;border:1px solid transparent;transition:all 0.15s}
-.opt.active{border-color:#10b981;background:rgba(16,185,129,0.08)}
-.opt.already-has{opacity:0.4;cursor:not-allowed;background:rgba(16,185,129,0.03);border-color:rgba(16,185,129,0.25)}
-.opt.already-has .opt-name::after{content:' ✓ קיים';color:#6ee7b7;font-size:10px;font-weight:800;margin-right:6px}
-.opt input{margin-left:10px;width:18px;height:18px;accent-color:#10b981;margin-top:2px;flex-shrink:0}
-.opt-body{flex:1}
-.opt-name{font-size:13px;font-weight:700;color:#fff}
-.opt-desc{font-size:11px;color:rgba(255,255,255,0.55);margin-top:2px;line-height:1.4}
-
-.inner-config{display:none;background:rgba(251,171,32,0.08);border:1px solid rgba(251,171,32,0.3);border-radius:10px;padding:10px;margin-top:6px}
-.inner-config.show{display:block}
-.inner-config label{display:block;font-size:11.5px;font-weight:700;margin-bottom:3px;color:#fbab20;margin-top:6px}
-.inner-config label:first-of-type{margin-top:0}
-.inner-config input{width:100%;background:rgba(0,0,0,0.4);border:1px solid rgba(255,255,255,0.15);border-radius:5px;color:#fff;padding:8px;font-size:12px;font-family:inherit}
-
-.btn{display:block;width:100%;background:linear-gradient(135deg,#fbab20,#fdb849);color:#0a0805;border:none;padding:16px;border-radius:12px;font-size:16px;font-weight:800;margin:10px 0;cursor:pointer;font-family:inherit;box-shadow:0 4px 20px rgba(251,171,32,0.35)}
-.btn:disabled{opacity:0.5;cursor:not-allowed}
-
-.rules-box{display:none;background:rgba(16,185,129,0.08);border:2px solid #10b981;border-radius:12px;padding:14px;margin-top:14px}
-.rules-box.show{display:block}
-.rules-box h3{color:#6ee7b7;margin:0 0 10px;font-size:15px;text-align:center}
-.rules-code{background:rgba(0,0,0,0.7);border:1px solid rgba(255,255,255,0.1);border-radius:8px;padding:10px;font-family:monospace;font-size:10.5px;white-space:pre;overflow-x:auto;color:#ddd6fe;max-height:220px;overflow-y:auto;direction:ltr;text-align:left;line-height:1.5}
-.rules-btn{display:block;width:100%;background:linear-gradient(135deg,#10b981,#059669);color:#fff;border:none;padding:12px;border-radius:10px;font-size:14px;font-weight:800;margin-top:10px;cursor:pointer;font-family:inherit}
-
-.log{background:rgba(0,0,0,0.55);border:1px solid rgba(124,58,237,0.3);border-radius:10px;padding:12px;margin-top:10px;font-size:12px;font-family:monospace;white-space:pre-wrap;word-break:break-all;direction:ltr;text-align:left;color:#ddd6fe;max-height:350px;overflow-y:auto}
-.log .ok{color:#6ee7b7}
-.log .err{color:#fca5a5}
-.log .warn{color:#fcd34d}
-.log .info{color:#93c5fd}
-.log .big{font-size:13px;font-weight:800;color:#fb923c}
-
-.download{display:none;background:linear-gradient(135deg,#10b981,#059669);color:#fff;border:none;padding:18px;border-radius:14px;font-size:16px;font-weight:800;cursor:pointer;font-family:inherit;width:100%;margin-top:12px;text-align:center;text-decoration:none;box-shadow:0 6px 24px rgba(16,185,129,0.4)}
-.download.show{display:block}
-
-.summary{display:none;background:rgba(16,185,129,0.08);border:1px solid #10b981;border-radius:10px;padding:10px 12px;margin-bottom:12px;font-size:12.5px;color:#6ee7b7;text-align:center}
-.summary.show{display:block}
+*{box-sizing:border-box;margin:0;padding:0}
+body{font-family:system-ui,sans-serif;background:#0f172a;min-height:100vh;padding:20px;color:white}
+h1{text-align:center;font-size:22px;margin-bottom:4px;color:#5eead4}
+.sub{text-align:center;font-size:13px;color:#475569;margin-bottom:20px}
+.token-row{display:flex;gap:8px;margin-bottom:6px}
+.token-inp{flex:1;background:#1e293b;border:1px solid #334155;border-radius:12px;padding:11px 14px;color:white;font-size:14px;outline:none;text-align:right;font-family:inherit}
+.token-inp:focus{border-color:#5eead4}
+.token-btn{background:#0d9488;border:none;border-radius:12px;padding:11px 16px;color:white;font-weight:700;cursor:pointer;font-size:13px;white-space:nowrap;font-family:inherit}
+.token-status{font-size:12px;text-align:center;margin-bottom:16px;min-height:18px}
+.sites-grid{display:flex;flex-direction:column;gap:12px;margin-bottom:12px}
+.site-card{background:#1e293b;border-radius:16px;padding:16px;border:1px solid #334155}
+.site-card-top{display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:10px}
+.site-name{font-size:15px;font-weight:800;color:white}
+.site-repo{font-size:11px;color:#475569;margin-top:2px}
+.site-link{font-size:11px;color:#5eead4;text-decoration:none;display:inline-block;margin-top:3px}
+.card-actions{display:flex;gap:6px;flex-shrink:0}
+.edit-btn{background:#1e3a5f;border:1px solid #334155;border-radius:8px;padding:6px 10px;color:#7dd3fc;cursor:pointer;font-size:11px;font-family:inherit}
+.copy-btn{background:#134e4a;border:1px solid #0d9488;border-radius:8px;padding:6px 10px;color:#5eead4;cursor:pointer;font-size:11px;font-family:inherit;transition:all .2s}
+.copy-btn.done{background:#059669;color:white;border-color:#10b981}
+.del-btn{background:#7f1d1d;border:none;border-radius:8px;padding:6px 10px;color:#fca5a5;cursor:pointer;font-size:11px;font-family:inherit}
+.deploy-btn{background:linear-gradient(135deg,#0d9488,#0f766e);border:none;border-radius:10px;padding:11px 16px;color:white;font-weight:700;cursor:pointer;font-size:13px;font-family:inherit;width:100%}
+.deploy-btn:disabled{opacity:.5}
+.self-btn{background:linear-gradient(135deg,#7c3aed,#5b21b6);border:none;border-radius:10px;padding:10px 16px;color:white;font-weight:700;cursor:pointer;font-size:12px;font-family:inherit;width:100%;margin-top:8px}
+.self-btn:disabled{opacity:.5}
+.prog{background:#0f172a;border-radius:8px;overflow:hidden;margin-top:8px;height:5px;display:none}
+.prog-bar{height:100%;background:linear-gradient(90deg,#0d9488,#5eead4);border-radius:8px;transition:width .4s}
+.card-status{font-size:12px;color:#5eead4;margin-top:6px;min-height:16px;text-align:center}
+.card-status.err{color:#f87171}
+.add-btn{background:linear-gradient(135deg,#7c3aed,#5b21b6);border:none;border-radius:16px;padding:16px;text-align:center;color:white;font-size:14px;font-weight:700;font-family:inherit;width:100%;cursor:pointer}
+.add-form{background:#1e293b;border-radius:16px;padding:16px;border:1px solid #7c3aed;margin-top:10px;display:none}
+.add-form.show{display:block}
+.add-inp{width:100%;background:#0f172a;border:1px solid #334155;border-radius:10px;padding:10px 14px;color:white;font-size:14px;outline:none;text-align:right;font-family:inherit;margin-bottom:8px}
+.add-inp:focus{border-color:#5eead4}
+.add-btns{display:flex;gap:8px;margin-top:8px}
+.btn-purple{flex:2;background:#7c3aed;border:none;border-radius:10px;padding:12px;color:white;font-weight:700;cursor:pointer;font-family:inherit}
+.btn-gray{flex:1;background:#334155;border:none;border-radius:10px;padding:12px;color:white;font-weight:700;cursor:pointer;font-family:inherit}
+.file-lbl{font-size:12px;color:#5eead4;text-align:center;min-height:16px;margin:4px 0}
+.new-step{font-size:11px;color:#64748b;text-align:center;min-height:16px;margin-top:4px}
+.toast{position:fixed;bottom:24px;left:50%;transform:translateX(-50%);background:#0d9488;color:white;padding:12px 24px;border-radius:12px;font-size:14px;font-weight:600;z-index:9999;opacity:0;transition:opacity .3s;pointer-events:none;white-space:nowrap}
+.toast.err{background:#dc2626}
+.toast.show{opacity:1}
+.edit-overlay{position:fixed;inset:0;background:#0f172a;z-index:998;display:flex;flex-direction:column;padding:14px}
+.edit-overlay.hidden{display:none}
+.edit-top{display:flex;align-items:center;gap:8px;margin-bottom:10px}
+.edit-title{flex:1;font-size:15px;font-weight:700;color:#5eead4}
+.edit-textarea{flex:1;background:#1e293b;border:1px solid #334155;border-radius:12px;color:#e2e8f0;font-size:12px;font-family:'Courier New',monospace;padding:12px;resize:none;outline:none;direction:ltr;text-align:left;line-height:1.6}
+.edit-btns{display:flex;gap:8px;margin-top:10px}
+.edit-save{flex:2;background:linear-gradient(135deg,#0d9488,#0f766e);border:none;border-radius:10px;padding:13px;color:white;font-weight:700;font-size:14px;cursor:pointer;font-family:inherit}
+.edit-cancel{flex:1;background:#334155;border:none;border-radius:10px;padding:13px;color:white;font-weight:700;cursor:pointer;font-family:inherit}
+.edit-status{font-size:12px;color:#5eead4;text-align:center;min-height:16px;margin-top:6px}
 </style>
 </head>
-<body><div class="box">
+<body>
 
-<h1>🛡️ שריון מבודד</h1>
-<div class="sub">Namespace מוחלט — אפס התנגשות עם הודיה/רינת</div>
+<h1>🚀 לוח פרסום</h1>
+<p class="sub">עדכן כל אתר בלחיצה אחת</p>
 
-<div class="warn">
-<b>⚠️ קריטי:</b> הכלי הזה בונה אפליקציה עם <b>namespace מלא</b> שמפריד אותה לחלוטין מכל אפליקציה אחרת:<br>
-📧 Email alias ייחודי · 💾 Firebase path ייחודי · 💿 localStorage prefix ייחודי
+<div class="token-row">
+  <input class="token-inp" id="gh-token" type="password" placeholder="GitHub Token שלך..." dir="ltr">
+  <button class="token-btn" onclick="saveToken()">💾 שמור</button>
 </div>
+<div class="token-status" id="token-status"></div>
 
-<label class="drop" id="drop">
-  <div class="drop-icon">📁</div>
-  <div class="drop-title">העלה קובץ HTML</div>
-  <div class="drop-sub">או גרור לכאן</div>
-  <input type="file" id="file" accept=".html,.htm" hidden>
-</label>
+<div class="sites-grid" id="sites-grid"></div>
 
-<div class="report" id="report">
-  <div class="report-ttl">📊 סריקת שכבות קיימות</div>
-  <div id="reportItems"></div>
-</div>
+<button class="add-btn" onclick="toggleAddForm()">✨ הוסף אתר חדש — הכל אוטומטי</button>
 
-<div class="summary" id="summary"></div>
-
-<!-- ═══ THE CRITICAL NAMESPACE CONFIG ═══ -->
-<div class="ns-config" id="nsConfig">
-  <h3>🏷️ זהות האפליקציה (הכי חשוב!)</h3>
-  <div class="critical">
-    <b>⚠️ ה-ID הזה מפריד את האפליקציה מכל השאר.</b><br>
-    אסור שייהיה: <code>diary</code>, <code>therapy_hodaya</code>, <code>hodaya</code>, <code>dr</code>.<br>
-    צריך להיות: מילה אחת, אנגלית, ללא רווחים (דוגמאות: <code>deploy_panel</code>, <code>my_dashboard</code>, <code>biz_tool</code>).
-  </div>
-  
-  <label>🏷️ App ID (ייחודי!):</label>
-  <input type="text" id="cfg-app-id" placeholder="deploy_panel" value="deploy_panel">
-  <div class="hint">חייב להיות: אותיות אנגליות קטנות, מספרים, קו תחתון בלבד. 3-20 תווים.</div>
-  
-  <div id="collision-check" class="collision-check"></div>
-  
-  <label>📝 שם תצוגה (עברית):</label>
-  <input type="text" id="cfg-display-name" placeholder="🚀 לוח הפרסום" value="🚀 לוח הפרסום">
-  
-  <label>📄 תת-כותרת:</label>
-  <input type="text" id="cfg-subtitle" placeholder="התחבר כדי להיכנס" value="התחבר כדי להיכנס">
-  
-  <div class="preview" id="preview"></div>
-</div>
-
-<div id="optsWrap" style="display:none">
-
-<div class="layer-group">
-  <div class="layer-ttl">🌐 אבטחת Web</div>
-  <label class="opt" data-key="headers"><input type="checkbox" id="opt-headers"><div class="opt-body"><div class="opt-name">🔐 8 Security Headers</div><div class="opt-desc">X-Frame, nosniff, Referrer, Cache-Control</div></div></label>
-  <label class="opt" data-key="csp"><input type="checkbox" id="opt-csp"><div class="opt-body"><div class="opt-name">🛡️ CSP חכם</div><div class="opt-desc">מזהה APIs אוטומטית</div></div></label>
-  <label class="opt" data-key="antidebug"><input type="checkbox" id="opt-antidebug"><div class="opt-body"><div class="opt-name">🚫 Anti-debug</div><div class="opt-desc">חוסם F12, DevTools</div></div></label>
-</div>
-
-<div class="layer-group">
-  <div class="layer-ttl">🔒 בקרת גישה</div>
-  
-  <label class="opt" data-key="firebaseAuth"><input type="checkbox" id="opt-firebase-auth"><div class="opt-body"><div class="opt-name">🔥 Firebase Auth מבודד</div><div class="opt-desc">UI בסגנון רינת/דניאל · namespace נפרד · אפס התנגשות</div></div></label>
-  
-  <div class="inner-config" id="cfg-firebase-auth">
-    <label>🔑 Firebase API Key:</label>
-    <input type="text" id="cfg-fb-api" value="AIzaSyCsh6qM-WgbWn1LHx2FTVio35ZPvMQ0aG4">
-    <label>🌐 Database URL:</label>
-    <input type="text" id="cfg-fb-db" value="https://diary-daniel-rinat-default-rtdb.firebaseio.com">
-  </div>
-  
-  <label class="opt" data-key="invite"><input type="checkbox" id="opt-invite"><div class="opt-body"><div class="opt-name">🎟️ קוד הזמנה</div><div class="opt-desc">רק עם הקוד — אפשר להירשם</div></div></label>
-  
-  <div class="inner-config" id="cfg-invite">
-    <label>🎟️ הקוד:</label>
-    <input type="text" id="cfg-invite-val" value="Deploy2026@">
-  </div>
-  
-  <label class="opt" data-key="biometric"><input type="checkbox" id="opt-biometric"><div class="opt-body"><div class="opt-name">👆 טביעת אצבע / Face ID</div><div class="opt-desc">הצעה אחרי login ראשון</div></div></label>
-  
-  <label class="opt" data-key="sms2fa"><input type="checkbox" id="opt-sms2fa"><div class="opt-body"><div class="opt-name">📱 SMS 2FA</div><div class="opt-desc">קוד 6 ספרות בכל כניסה</div></div></label>
-  
-  <div class="inner-config" id="cfg-sms2fa">
-    <label>🌍 קידומת:</label>
-    <input type="text" id="cfg-sms-country" value="+972">
-    <div class="hint" style="color:#fcd34d">⚠️ הפעל Phone Provider ב-Firebase Console</div>
+<div class="add-form" id="add-form">
+  <div style="font-size:12px;color:#5eead4;margin-bottom:12px;text-align:center">ריפו נוצר + Pages מופעל אוטומטית 🎉</div>
+  <input class="add-inp" id="new-name" placeholder="שם האתר (למשל: אתר רינת)">
+  <input class="add-inp" id="new-repo" placeholder="שם ריפו (למשל: rinat-site)" dir="ltr">
+  <input class="add-inp" id="new-owner" placeholder="שם משתמש גיטהאב" dir="ltr" value="pinto1212121212-create">
+  <input type="file" accept=".html" id="new-file" style="display:none" onchange="document.getElementById('new-file-lbl').textContent=this.files[0]?'📄 '+this.files[0].name:''">
+  <button class="deploy-btn" onclick="document.getElementById('new-file').click()" style="margin-bottom:4px">📁 בחר קובץ HTML</button>
+  <div class="file-lbl" id="new-file-lbl"></div>
+  <div class="prog" id="new-prog"><div class="prog-bar" id="new-progbar" style="width:0%"></div></div>
+  <div class="new-step" id="new-step"></div>
+  <div class="add-btns">
+    <button class="btn-gray" onclick="toggleAddForm()">ביטול</button>
+    <button class="btn-purple" id="btn-create" onclick="createAndDeploy()">🚀 צור ופרסם!</button>
   </div>
 </div>
 
-<div class="layer-group">
-  <div class="layer-ttl">⏱️ הגבלה וניטור</div>
-  <label class="opt" data-key="rate"><input type="checkbox" id="opt-rate"><div class="opt-body"><div class="opt-name">⏱️ Rate Limit</div><div class="opt-desc">5 ניסיונות → חסימה שעה</div></div></label>
-  <label class="opt" data-key="audit"><input type="checkbox" id="opt-audit"><div class="opt-body"><div class="opt-name">📋 Audit Log</div><div class="opt-desc">רישום כל פעולה</div></div></label>
-  <label class="opt" data-key="fingerprint"><input type="checkbox" id="opt-fingerprint"><div class="opt-body"><div class="opt-name">🖥️ Device Fingerprint</div><div class="opt-desc">זיהוי מכשירים</div></div></label>
+<div class="edit-overlay hidden" id="edit-overlay">
+  <div class="edit-top">
+    <div class="edit-title" id="edit-title">✏️ עריכה</div>
+    <button class="edit-cancel" onclick="closeEditor()" style="padding:7px 14px;font-size:13px">✕ סגור</button>
+  </div>
+  <textarea class="edit-textarea" id="edit-textarea" spellcheck="false"></textarea>
+  <div class="edit-status" id="edit-status"></div>
+  <div class="edit-btns">
+    <button class="edit-cancel" onclick="closeEditor()">ביטול</button>
+    <button class="edit-cancel" onclick="downloadEdit()" style="background:#1e3a5f;color:#7dd3fc;border:1px solid #334155">⬇️ הורד</button>
+    <button class="edit-save" id="edit-save-btn" onclick="saveEdit()">💾 שמור ופרסם</button>
+  </div>
 </div>
 
-<div class="layer-group">
-  <div class="layer-ttl">🔐 הגנת נתונים</div>
-  <label class="opt" data-key="encryptLS"><input type="checkbox" id="opt-encrypt-ls"><div class="opt-body"><div class="opt-name">🔒 Encrypted localStorage</div><div class="opt-desc">AES-256</div></div></label>
-  <label class="opt" data-key="sessionTimeout"><input type="checkbox" id="opt-session-timeout"><div class="opt-body"><div class="opt-name">⏰ Session Timeout</div><div class="opt-desc">30 דק'</div></div></label>
-  <label class="opt" data-key="clipboardClear"><input type="checkbox" id="opt-clipboard-clear"><div class="opt-body"><div class="opt-name">📋 Clipboard Clear</div><div class="opt-desc">ניקוי אחרי 30 שנ'</div></div></label>
-</div>
+<div class="toast" id="toast"></div>
 
-<button class="btn" id="go" onclick="armor()" disabled>🛡️ שרוין עם Namespace מבודד</button>
-
-</div>
-
-<div class="rules-box" id="rulesBox">
-  <h3>📋 Firebase Security Rules (חובה!)</h3>
-  <div style="font-size:12px;color:#6ee7b7;margin-bottom:10px;line-height:1.5">העתק את ה-Rules הבאים ל-Firebase Console (Realtime Database → Rules). זה <b>מונע</b> מכל משתמש לגשת לנתונים של אחרים.</div>
-  <div class="rules-code" id="rulesCode"></div>
-  <button class="rules-btn" onclick="copyRules()">📋 העתק Rules ללוח</button>
-</div>
-
-<a class="download" id="dl" download="armored.html">⬇️ הורד קובץ</a>
-
-<div class="log" id="log">ממתין לקובץ...</div>
-
+<div id="del-modal" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,.7);z-index:9999;align-items:center;justify-content:center">
+  <div style="background:#1e293b;border-radius:16px;padding:24px;margin:20px;border:1px solid #f87171;text-align:center">
+    <div style="font-size:32px;margin-bottom:8px">🗑</div>
+    <div id="del-modal-name" style="font-size:16px;font-weight:700;margin-bottom:6px"></div>
+    <div style="font-size:13px;color:#94a3b8;margin-bottom:20px">למחוק מהרשימה?</div>
+    <div style="display:flex;gap:10px">
+      <button onclick="closeDelModal()" style="flex:1;background:#334155;border:none;border-radius:10px;padding:12px;color:white;font-weight:700;cursor:pointer;font-size:14px;font-family:inherit">ביטול</button>
+      <button onclick="doDelete()" style="flex:1;background:#dc2626;border:none;border-radius:10px;padding:12px;color:white;font-weight:700;cursor:pointer;font-size:14px;font-family:inherit">מחק</button>
+    </div>
+  </div>
 </div>
 
 <script>
-// ═══ RESERVED NAMESPACES - CANNOT BE USED ═══
-const RESERVED_IDS = ['diary', 'therapy_hodaya', 'hodaya', 'dr', 'rinat', 'daniel'];
+const DEFAULT_SITES=[
+  {id:'panel',    name:'🚀 לוח פרסום',                 repo:'deploy-panel',   owner:'pinto1212121212-create'},
+  {id:'hodaya',   name:'💙 היומן שלי — הודיה',         repo:'therapy-hodaya', owner:'pinto1212121212-create'},
+  {id:'rinat',    name:'📖 היומן שלנו — רינת ודניאל',  repo:'diary-rinat',    owner:'pinto1212121212-create'},
+  {id:'laser',    name:'💎 RB Pro Laser',               repo:'rb-prolaser',    owner:'pinto1212121212-create'},
+  {id:'laregesh', name:'🌸 בית לרגש',                  repo:'beit-laregesh',  owner:'pinto1212121212-create'},
+];
 
-const DETECTORS = {
-  headers: c => /X-Content-Type-Options/i.test(c) && /X-Frame-Options/i.test(c),
-  csp: c => /Content-Security-Policy/i.test(c),
-  antidebug: c => /F12.*preventDefault|devtools_opened/i.test(c),
-  firebaseAuth: c => /signInWithPassword|identitytoolkit\.googleapis/i.test(c),
-  invite: c => /INVITE_CODE|inviteCode/i.test(c),
-  biometric: c => /navigator\.credentials|PublicKeyCredential/i.test(c),
-  sms2fa: c => /sendVerificationCode|signInWithPhoneNumber/i.test(c),
-  rate: c => /rateLimit|blockedUntil/i.test(c),
-  audit: c => /__audit|audit_log/i.test(c),
-  fingerprint: c => /deviceFingerprint|__fingerprint/i.test(c),
-  encryptLS: c => /AES-GCM.*localStorage|__encLS/i.test(c),
-  sessionTimeout: c => /session_timeout|SessionTimeout/i.test(c),
-  clipboardClear: c => /__safeCopy|writeText.*setTimeout/i.test(c)
-};
-
-const LAYER_NAMES = {
-  headers: '🔐 Security Headers', csp: '🛡️ CSP', antidebug: '🚫 Anti-debug',
-  firebaseAuth: '🔥 Firebase Auth', invite: '🎟️ קוד הזמנה', biometric: '👆 ביומטרי',
-  sms2fa: '📱 SMS 2FA', rate: '⏱️ Rate Limit', audit: '📋 Audit Log',
-  fingerprint: '🖥️ Fingerprint', encryptLS: '🔒 Encrypted LS',
-  sessionTimeout: '⏰ Session Timeout', clipboardClear: '📋 Clipboard Clear'
-};
-
-let loadedFile = null, loadedContent = '', scanResults = {};
-let generatedRules = '';
-
-const dropEl = document.getElementById('drop');
-const fileEl = document.getElementById('file');
-const logEl = document.getElementById('log');
-const goBtn = document.getElementById('go');
-const dlBtn = document.getElementById('dl');
-const reportEl = document.getElementById('report');
-const reportItems = document.getElementById('reportItems');
-const optsWrap = document.getElementById('optsWrap');
-const summaryEl = document.getElementById('summary');
-const nsConfigEl = document.getElementById('nsConfig');
-const appIdInput = document.getElementById('cfg-app-id');
-const collisionEl = document.getElementById('collision-check');
-const previewEl = document.getElementById('preview');
-const rulesBox = document.getElementById('rulesBox');
-const rulesCode = document.getElementById('rulesCode');
-
-function l(msg, cls){const s = document.createElement('span'); if(cls) s.className = cls; s.textContent = msg + '\n'; logEl.appendChild(s); logEl.scrollTop = logEl.scrollHeight;}
-function clearLog(){logEl.innerHTML = '';}
-
-// ═══ Validate App ID ═══
-function validateAppId(id){
-  if(!id) return {ok: false, err: 'חובה App ID'};
-  if(!/^[a-z0-9_]+$/.test(id)) return {ok: false, err: 'רק אותיות אנגליות קטנות, מספרים, _'};
-  if(id.length < 3) return {ok: false, err: 'לפחות 3 תווים'};
-  if(id.length > 20) return {ok: false, err: 'עד 20 תווים'};
-  if(RESERVED_IDS.includes(id)) return {ok: false, err: '"' + id + '" שמור לאפליקציה קיימת!'};
-  return {ok: true};
+function getDeletedIds(){
+  try{return JSON.parse(localStorage.getItem('deleted_ids')||'[]');}catch(e){return [];}
 }
-
-function updatePreview(){
-  const id = appIdInput.value.trim();
-  const v = validateAppId(id);
-  if(!v.ok){
-    collisionEl.className = 'collision-check show bad';
-    collisionEl.innerHTML = '❌ ' + v.err;
-    previewEl.innerHTML = '';
-    goBtn.disabled = true;
-    return false;
-  }
-  collisionEl.className = 'collision-check show ok';
-  collisionEl.innerHTML = '✅ App ID תקין · אפס התנגשות עם אפליקציות קיימות';
-  
-  previewEl.innerHTML =
-    '<div class="preview-ttl">🔍 כך המערכת תיראה:</div>' +
-    '📧 Email alias: pinto@gmail.com → pinto+' + id + '@gmail.com<br>' +
-    '💾 Firebase path: /' + id + '/users, /' + id + '/phones<br>' +
-    '💿 localStorage: ' + id + '_fb_auth, ' + id + '_audit<br>' +
-    '⏱️ Rate limit: rl_' + id + '<br>' +
-    '🎯 Session key: sess_' + id;
-  
-  goBtn.disabled = false;
-  return true;
-}
-
-appIdInput.addEventListener('input', updatePreview);
-
-// ═══ Drop zone ═══
-dropEl.addEventListener('click', e => {if(e.target.tagName !== 'INPUT') fileEl.click();});
-dropEl.addEventListener('dragover', e => {e.preventDefault(); dropEl.classList.add('active');});
-dropEl.addEventListener('dragleave', () => dropEl.classList.remove('active'));
-dropEl.addEventListener('drop', e => {e.preventDefault(); dropEl.classList.remove('active'); if(e.dataTransfer.files.length) handleFile(e.dataTransfer.files[0]);});
-fileEl.addEventListener('change', e => {if(e.target.files.length) handleFile(e.target.files[0]);});
-
-function handleFile(file){
-  if(!file.name.match(/\.html?$/i)){clearLog(); l('❌ בחר קובץ HTML', 'err'); return;}
-  loadedFile = file;
-  const reader = new FileReader();
-  reader.onload = e => {loadedContent = e.target.result; clearLog(); scanFile();};
-  reader.readAsText(file, 'utf-8');
-}
-
-function scanFile(){
-  l('═══ סריקה ═══', 'big');
-  l('📄 ' + loadedFile.name + ' (' + (loadedContent.length/1024).toFixed(0) + ' KB)', 'info');
-  
-  // ⚠️ CRITICAL: Detect if this is Hodaya or Rinat's file — DON'T let user armor those!
-  if(loadedContent.includes('therapy_hodaya') || loadedContent.includes('היומן של הודיה')){
-    l('🚨 זהו הקובץ של הודיה!', 'err');
-    l('⚠️ הכלי הזה בונה אפליקציה חדשה — לא משדרג קיימת.', 'warn');
-    l('   (הודיה כבר מאובטחת; אל תשתמש בכלי הזה עליה)', 'warn');
-    reportEl.classList.remove('show');
-    optsWrap.style.display = 'none';
-    nsConfigEl.classList.remove('show');
-    return;
-  }
-  if(loadedContent.includes("const FB='https://diary-daniel-rinat-default-rtdb.firebaseio.com/diary'") || loadedContent.includes('היומן שלנו')){
-    l('🚨 זהו הקובץ של רינת/דניאל!', 'err');
-    l('⚠️ הכלי הזה בונה אפליקציה חדשה — לא משדרג קיימת.', 'warn');
-    l('   (רינת/דניאל כבר מאובטחים; אל תשתמש בכלי הזה עליהם)', 'warn');
-    reportEl.classList.remove('show');
-    optsWrap.style.display = 'none';
-    nsConfigEl.classList.remove('show');
-    return;
-  }
-  
-  const hebrew = (loadedContent.match(/[\u0590-\u05FF]/g)||[]).length;
-  l('🔤 ' + hebrew.toLocaleString() + ' תווים עברית', 'info');
-  
-  scanResults = {};
-  let has = 0, lacks = 0;
-  for(const key in DETECTORS){
-    scanResults[key] = DETECTORS[key](loadedContent);
-    if(scanResults[key]) has++; else lacks++;
-  }
-  l('\n✅ קיימות: ' + has + ' | ❌ חסרות: ' + lacks, 'info');
-  
-  reportItems.innerHTML = '';
-  for(const key in DETECTORS){
-    const exists = scanResults[key];
-    const div = document.createElement('div');
-    div.className = 'report-item ' + (exists ? 'yes' : 'no');
-    div.innerHTML = '<span class="status">' + (exists ? '✅' : '➕') + '</span><span class="label">' + LAYER_NAMES[key] + '</span><span class="note">' + (exists ? 'קיים' : 'יתווסף אם תסמן') + '</span>';
-    reportItems.appendChild(div);
-  }
-  reportEl.classList.add('show');
-  
-  document.querySelectorAll('.opt[data-key]').forEach(optEl => {
-    const key = optEl.dataset.key;
-    const cb = optEl.querySelector('input');
-    if(scanResults[key]){
-      optEl.classList.add('already-has');
-      cb.checked = false;
-      cb.disabled = true;
-    }else{
-      optEl.classList.remove('already-has');
-      cb.disabled = false;
-      if(['headers','csp','rate','audit','fingerprint','encryptLS','clipboardClear','antidebug'].includes(key)){
-        cb.checked = true;
-        optEl.classList.add('active');
-      }
-    }
-  });
-  
-  nsConfigEl.classList.add('show');
-  optsWrap.style.display = 'block';
-  
-  const missing = Object.keys(scanResults).filter(k => !scanResults[k]);
-  if(missing.length === 0){
-    summaryEl.innerHTML = '🎉 הקובץ כבר מאובטח לחלוטין!';
-    summaryEl.classList.add('show');
-    goBtn.disabled = true;
-  }else{
-    summaryEl.innerHTML = '✅ ' + has + ' קיימות (נעולות), ' + lacks + ' זמינות';
-    summaryEl.classList.add('show');
-  }
-  
-  updateOptUI();
-  updatePreview();
-}
-
-function updateOptUI(){
-  ['firebase-auth', 'invite', 'sms2fa'].forEach(id => {
-    const cb = document.getElementById('opt-' + id);
-    const cfg = document.getElementById('cfg-' + id);
-    if(cb && cfg) cfg.classList.toggle('show', cb.checked && !cb.disabled);
-  });
-  const fb = document.getElementById('opt-firebase-auth');
-  ['biometric','invite','sms2fa'].forEach(id => {
-    const cb = document.getElementById('opt-' + id);
-    if(cb && !cb.disabled && !scanResults.firebaseAuth && !fb.checked && cb.checked){
-      cb.checked = false;
-      cb.closest('.opt').classList.remove('active');
-    }
-  });
-  document.querySelectorAll('.opt').forEach(el => {
-    const cb = el.querySelector('input');
-    if(cb && !cb.disabled) el.classList.toggle('active', cb.checked);
-  });
-}
-document.querySelectorAll('.opt input').forEach(cb => cb.addEventListener('change', updateOptUI));
-
-// ═══ BUILDERS (all namespaced by appId) ═══
-
-const HEADERS = `  <!-- Security Headers -->
-  <meta http-equiv="X-Content-Type-Options" content="nosniff">
-  <meta http-equiv="X-Frame-Options" content="DENY">
-  <meta http-equiv="Referrer-Policy" content="strict-origin-when-cross-origin">
-  <meta http-equiv="Permissions-Policy" content="geolocation=(), microphone=(), camera=(), payment=()">
-  <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
-  <meta http-equiv="Pragma" content="no-cache">
-  <meta http-equiv="Expires" content="0">`;
-
-function detectAPIs(content){
-  return {
-    firebase: /firebaseio\.com|firebase\.googleapis|identitytoolkit\.googleapis/i.test(content),
-    github: /api\.github\.com|raw\.githubusercontent\.com/i.test(content),
-    emailjs: /emailjs\.com/i.test(content),
-    anthropic: /api\.anthropic\.com/i.test(content),
-    cdnjs: /cdnjs\.cloudflare\.com/i.test(content),
-    googleFonts: /fonts\.googleapis\.com|fonts\.gstatic\.com/i.test(content),
-    recaptcha: /google\.com\/recaptcha/i.test(content)
-  };
-}
-
-function buildCSP(apis, content, needsFirebase, needsSMS){
-  const connect = ["'self'"], script = ["'self'", "'unsafe-inline'"];
-  const style = ["'self'", "'unsafe-inline'"], font = ["'self'", "data:"];
-  const img = ["'self'", "data:", "blob:", "https:"], frame = ["'self'"];
-  if(apis.firebase || needsFirebase){
-    const dbs = content.match(/https:\/\/[a-z0-9-]+\.firebaseio\.com/gi) || [];
-    dbs.forEach(d => { if(!connect.includes(d)) connect.push(d); });
-    connect.push('https://identitytoolkit.googleapis.com', 'https://securetoken.googleapis.com');
-    // Ensure the DB URL is included
-    const dbUrl = document.getElementById('cfg-fb-db').value.trim();
-    if(dbUrl && !connect.includes(dbUrl)) connect.push(dbUrl);
-  }
-  if(apis.github) connect.push('https://api.github.com', 'https://raw.githubusercontent.com');
-  if(apis.emailjs){connect.push('https://api.emailjs.com'); script.push('https://cdn.emailjs.com');}
-  if(apis.anthropic) connect.push('https://api.anthropic.com');
-  if(apis.cdnjs) script.push('https://cdnjs.cloudflare.com');
-  if(apis.googleFonts){style.push('https://fonts.googleapis.com'); font.push('https://fonts.gstatic.com');}
-  if(apis.recaptcha || needsSMS){script.push('https://www.google.com/recaptcha/', 'https://www.gstatic.com/recaptcha/'); frame.push('https://www.google.com/recaptcha/');}
-  const u = a => [...new Set(a)];
-  return '  <meta http-equiv="Content-Security-Policy" content="' +
-    "default-src 'self'; script-src " + u(script).join(' ') + '; style-src ' + u(style).join(' ') +
-    '; font-src ' + u(font).join(' ') + '; img-src ' + u(img).join(' ') + '; connect-src ' + u(connect).join(' ') +
-    '; frame-src ' + u(frame).join(' ') + "; media-src 'self' blob:; base-uri 'self'; form-action 'self'; object-src 'none'; upgrade-insecure-requests\">";
-}
-
-const ANTIDEBUG = `
-  <script>
-  (function(){
-    document.addEventListener('keydown', e => {if(e.key === 'F12' || ((e.ctrlKey||e.metaKey) && e.shiftKey && ['I','J','C'].includes(e.key)) || ((e.ctrlKey||e.metaKey) && e.key === 'u'))e.preventDefault();});
-    document.addEventListener('contextmenu', e => e.preventDefault());
-    let dt = false;
-    setInterval(() => {if(window.outerWidth - window.innerWidth > 160 || window.outerHeight - window.innerHeight > 160){if(!dt){dt = true; if(window.__audit)window.__audit('devtools_opened');}}}, 1000);
-  })();
-  <\/script>`;
-
-function buildRateLimit(appId){
-  return `
-  <script>
-  window.__rateLimit = {
-    _key: '${appId}_rl',
-    _max: 5, _window: 3600000,
-    check(){const d = this._load(); if(d.blockedUntil && Date.now() < d.blockedUntil){const m = Math.ceil((d.blockedUntil - Date.now())/60000); throw new Error('חסום למשך ' + m + ' דקות');} return true;},
-    fail(){const d=this._load(); d.fails=(d.fails||0)+1; if(d.fails>=this._max){d.blockedUntil=Date.now()+this._window; d.fails=0;} this._save(d); return this._max-d.fails;},
-    success(){this._save({fails:0, blockedUntil:0});},
-    _load(){try{return JSON.parse(localStorage.getItem(this._key)||'{"fails":0}');}catch(e){return {fails:0};}},
-    _save(d){try{localStorage.setItem(this._key, JSON.stringify(d));}catch(e){}}
-  };
-  <\/script>`;
-}
-
-function buildAudit(appId){
-  return `
-  <script>
-  (function(){const KEY = '${appId}_audit'; window.__audit = function(ev, data){try{const log = JSON.parse(localStorage.getItem(KEY)||'[]'); log.push({t: Date.now(), e: ev, d: data||null}); while(log.length > 500) log.shift(); localStorage.setItem(KEY, JSON.stringify(log));}catch(e){}}; window.__audit('page_loaded');})();
-  <\/script>`;
-}
-
-const FINGERPRINT = `
-  <script>
-  window.__fingerprint = async function(){const data = navigator.userAgent + '|' + navigator.language + '|' + screen.width + 'x' + screen.height + '|' + (navigator.hardwareConcurrency||'') + '|' + new Date().getTimezoneOffset(); const buf = new TextEncoder().encode(data); const hash = await crypto.subtle.digest('SHA-256', buf); return Array.from(new Uint8Array(hash)).map(b => b.toString(16).padStart(2,'0')).join('').substring(0,16);};
-  <\/script>`;
-
-function buildEncryptLS(appId){
-  return `
-  <script>
-  window.__encLS = (function(){
-    let _key = null;
-    async function derive(pw){const enc = new TextEncoder(); const km = await crypto.subtle.importKey('raw', enc.encode(pw), 'PBKDF2', false, ['deriveKey']); return crypto.subtle.deriveKey({name:'PBKDF2', salt: enc.encode('${appId}_salt_v1'), iterations:100000, hash:'SHA-256'}, km, {name:'AES-GCM', length:256}, false, ['encrypt','decrypt']);}
-    return {init: async pw => {_key = await derive(pw);},
-      set: async (k, v) => {if(!_key)throw new Error('not init'); const iv = crypto.getRandomValues(new Uint8Array(12)); const ct = await crypto.subtle.encrypt({name:'AES-GCM', iv}, _key, new TextEncoder().encode(v)); const c = new Uint8Array(iv.length + ct.byteLength); c.set(iv); c.set(new Uint8Array(ct), iv.length); localStorage.setItem('${appId}_' + k, btoa(String.fromCharCode(...c)));},
-      get: async k => {if(!_key)throw new Error('not init'); const s = localStorage.getItem('${appId}_' + k); if(!s)return null; const d = Uint8Array.from(atob(s), c=>c.charCodeAt(0)); const iv = d.slice(0,12); const ct = d.slice(12); const pt = await crypto.subtle.decrypt({name:'AES-GCM', iv}, _key, ct); return new TextDecoder().decode(pt);}};
-  })();
-  <\/script>`;
-}
-
-function buildSessionTimeout(appId){
-  return `
-  <script>
-  (function(){const TIMEOUT = 1800000; let last = Date.now(); ['click','keydown','scroll','mousemove','touchstart'].forEach(ev => document.addEventListener(ev, () => {last = Date.now();}, {passive:true})); setInterval(() => {if(Date.now() - last > TIMEOUT){if(window.__audit)window.__audit('session_timeout'); alert('⏰ פג תוקף הסשן'); sessionStorage.removeItem('${appId}_pw'); localStorage.removeItem('${appId}_fb_auth'); location.reload();}}, 30000);})();
-  <\/script>`;
-}
-
-const CLIPBOARD_CLEAR = `
-  <script>
-  window.__safeCopy = function(text, ms){navigator.clipboard.writeText(text).then(() => {setTimeout(() => {navigator.clipboard.writeText(' ').catch(()=>{});}, ms || 30000);});};
-  <\/script>`;
-
-// ═══ THE MAIN EVENT: Firebase Auth Gate with full namespace isolation ═══
-function buildIsolatedAuth(appId, apiKey, dbUrl, inviteCode, title, subtitle, withBio, withSMS, smsCountry){
-  return `
-  ${withSMS ? '<script src="https://www.google.com/recaptcha/api.js?render=explicit"><\/script>' : ''}
-  <style id="${appId}-login-css">
-  #${appId}-login-screen{position:fixed;inset:0;background:linear-gradient(135deg,#1a1410 0%,#0a0805 100%);z-index:99999;display:flex;align-items:center;justify-content:center;padding:20px;font-family:system-ui,-apple-system,sans-serif;direction:rtl}
-  .${appId}-box{background:linear-gradient(180deg,rgba(26,20,16,0.95),rgba(10,8,5,0.98));border:1px solid rgba(251,171,32,0.25);border-radius:20px;padding:32px 24px;max-width:400px;width:100%;box-shadow:0 20px 60px rgba(0,0,0,0.5),inset 0 1px 0 rgba(251,171,32,0.15)}
-  .${appId}-title{text-align:center;font-size:26px;font-weight:800;background:linear-gradient(135deg,#fbab20,#fdb849);-webkit-background-clip:text;-webkit-text-fill-color:transparent;margin-bottom:6px}
-  .${appId}-sub{text-align:center;color:rgba(255,255,255,0.55);font-size:14px;margin-bottom:24px}
-  .${appId}-field{margin-bottom:14px}
-  .${appId}-field label{display:block;color:rgba(251,171,32,0.85);font-size:13px;margin-bottom:6px;font-weight:600}
-  .${appId}-field input{width:100%;background:rgba(255,255,255,0.04);border:1px solid rgba(251,171,32,0.2);border-radius:10px;padding:12px 14px;color:#fff;font-size:16px;font-family:inherit;direction:ltr;text-align:right;box-sizing:border-box}
-  .${appId}-field input:focus{outline:none;border-color:#fbab20;background:rgba(255,255,255,0.06)}
-  .${appId}-btn{width:100%;background:linear-gradient(135deg,#fbab20,#fdb849);color:#0a0805;border:none;padding:14px;border-radius:12px;font-size:16px;font-weight:800;cursor:pointer;margin-top:8px;font-family:inherit;box-shadow:0 8px 24px rgba(251,171,32,0.3)}
-  .${appId}-btn:active{transform:scale(0.98)}
-  .${appId}-switch{text-align:center;margin-top:18px;color:rgba(255,255,255,0.55);font-size:13px}
-  .${appId}-switch a{color:#fbab20;text-decoration:none;font-weight:700;cursor:pointer}
-  .${appId}-err{background:rgba(239,68,68,0.12);border:1px solid rgba(239,68,68,0.35);color:#fca5a5;padding:10px 14px;border-radius:10px;font-size:13px;margin-bottom:14px;text-align:center}
-  .${appId}-ok{background:rgba(74,222,128,0.12);border:1px solid rgba(74,222,128,0.35);color:#86efac;padding:10px 14px;border-radius:10px;font-size:13px;margin-bottom:14px;text-align:center}
-  </style>
-  <script>
-  (function(){
-    // ═══ NAMESPACE ISOLATION - everything prefixed with appId ═══
-    const APP_ID = '${appId}';
-    const FB_API = '${apiKey}';
-    const FB_DB = '${dbUrl}';
-    const INVITE_CODE = ${JSON.stringify(inviteCode || '')};
-    const APP_TITLE = ${JSON.stringify(title)};
-    const APP_SUB = ${JSON.stringify(subtitle)};
-    const WITH_BIO = ${withBio ? 'true' : 'false'};
-    const WITH_SMS = ${withSMS ? 'true' : 'false'};
-    const SMS_COUNTRY = '${smsCountry || '+972'}';
-    
-    // All storage keys use APP_ID prefix
-    const AUTH_KEY = APP_ID + '_fb_auth';
-    const PHONE_KEY = APP_ID + '_phones';
-    
-    // Email alias to keep auth accounts isolated from other apps using same Firebase project
-    function applyAlias(email){
-      if(!email || !email.includes('@')) return email;
-      email = email.trim().toLowerCase();
-      if(email.includes('+')) return email;
-      const [local, domain] = email.split('@');
-      if(domain === 'gmail.com' || domain === 'googlemail.com'){
-        return local + '+' + APP_ID + '@' + domain;
-      }
-      return email;
-    }
-    
-    // Check if already authenticated
-    try{const saved = JSON.parse(localStorage.getItem(AUTH_KEY) || 'null'); if(saved && saved.exp > Date.now()){if(window.__audit)window.__audit('auto_login', saved.email); return;}}catch(e){}
-    
-    document.documentElement.style.visibility = 'hidden';
-    let pendingLogin = null, smsSession = null, recaptchaW = null;
-    
-    function _msg(html, type){const el = document.getElementById(APP_ID + '-login-msg'); if(el)el.innerHTML = html ? '<div class="' + APP_ID + '-' + (type||'err') + '">' + html + '</div>' : '';}
-    
-    function showLogin(mode){
-      mode = mode || 'signin';
-      const box = document.getElementById(APP_ID + '-login-screen');
-      box.innerHTML = renderLogin(mode);
-    }
-    
-    function renderLogin(mode){
-      const P = APP_ID;
-      if(mode === 'signup'){
-        return '<div class="' + P + '-box">' +
-          '<div class="' + P + '-title">✍️ רישום חדש</div>' +
-          '<div class="' + P + '-sub">' + APP_TITLE + ' • הירשם כדי להתחיל</div>' +
-          '<div id="' + P + '-login-msg"></div>' +
-          '<div class="' + P + '-field"><label>שם מלא</label><input id="' + P + '-lg-name" type="text"></div>' +
-          '<div class="' + P + '-field"><label>Email</label><input id="' + P + '-lg-email" type="email"></div>' +
-          '<div class="' + P + '-field"><label>סיסמה (לפחות 8 תווים, אותיות ומספרים)</label><input id="' + P + '-lg-pass" type="password"></div>' +
-          '<div class="' + P + '-field"><label>🔒 אימות סיסמה</label><input id="' + P + '-lg-pass2" type="password"></div>' +
-          (WITH_SMS ? '<div class="' + P + '-field"><label>📱 טלפון (0501234567)</label><input id="' + P + '-lg-phone" type="tel"></div>' : '') +
-          (INVITE_CODE ? '<div class="' + P + '-field"><label>🎟️ קוד הזמנה</label><input id="' + P + '-lg-code" type="text"></div>' : '') +
-          '<button class="' + P + '-btn" onclick="window.__' + P + '_doSignup()">🚀 הירשם</button>' +
-          '<div class="' + P + '-switch">כבר רשום? <a onclick="window.__' + P + '_switchLogin(\\'signin\\')">התחבר</a></div>' +
-          '</div>';
-      }
-      if(mode === 'reset'){
-        return '<div class="' + P + '-box">' +
-          '<div class="' + P + '-title">🔄 שחזור סיסמה</div>' +
-          '<div class="' + P + '-sub">נשלח אליך קישור לאימייל שלך 🎯</div>' +
-          '<div id="' + P + '-login-msg"></div>' +
-          '<div class="' + P + '-field"><label>Email</label><input id="' + P + '-lg-email" type="email"></div>' +
-          '<button class="' + P + '-btn" onclick="window.__' + P + '_doReset()">📧 שלח קישור</button>' +
-          '<div style="background:rgba(251,171,32,0.08);border:1px solid rgba(251,171,32,0.3);border-radius:10px;padding:10px;margin-top:14px;font-size:12px;color:#fcd34d;line-height:1.5">💡 <b>חשוב:</b> פתח את הקישור ב-<b>Chrome/Safari</b>, לא באפליקציית Gmail.</div>' +
-          '<div class="' + P + '-switch"><a onclick="window.__' + P + '_switchLogin(\\'signin\\')">← חזרה לכניסה</a></div>' +
-          '</div>';
-      }
-      if(mode === 'sms'){
-        return '<div class="' + P + '-box">' +
-          '<div class="' + P + '-title">📱 אימות SMS</div>' +
-          '<div class="' + P + '-sub" id="' + P + '-sms-info">שולח SMS...</div>' +
-          '<div id="' + P + '-login-msg"></div>' +
-          '<div id="' + P + '-recaptcha" style="margin:10px 0"></div>' +
-          '<div class="' + P + '-field"><label>קוד 6 ספרות</label><input id="' + P + '-sms-code" type="text" inputmode="numeric" maxlength="6"></div>' +
-          '<button class="' + P + '-btn" onclick="window.__' + P + '_verifySms()">✅ אמת קוד</button>' +
-          '<div class="' + P + '-switch"><a onclick="window.__' + P + '_resendSms()">📲 שלח SMS חדש</a></div>' +
-          '<div class="' + P + '-switch"><a onclick="window.__' + P + '_switchLogin(\\'signin\\')">← חזרה</a></div>' +
-          '</div>';
-      }
-      return '<div class="' + P + '-box">' +
-        '<div class="' + P + '-title">' + APP_TITLE + '</div>' +
-        '<div class="' + P + '-sub">' + APP_SUB + '</div>' +
-        '<div id="' + P + '-login-msg"></div>' +
-        '<div class="' + P + '-field"><label>Email</label><input id="' + P + '-lg-email" type="email" onkeydown="if(event.key===\\'Enter\\')document.getElementById(\\'' + P + '-lg-pass\\').focus()"></div>' +
-        '<div class="' + P + '-field"><label>סיסמה</label><input id="' + P + '-lg-pass" type="password" onkeydown="if(event.key===\\'Enter\\')window.__' + P + '_doLogin()"></div>' +
-        '<button class="' + P + '-btn" onclick="window.__' + P + '_doLogin()">🔓 כניסה</button>' +
-        '<div class="' + P + '-switch">עדיין לא רשום? <a onclick="window.__' + P + '_switchLogin(\\'signup\\')">הירשם</a></div>' +
-        '<div class="' + P + '-switch" style="margin-top:8px"><a onclick="window.__' + P + '_switchLogin(\\'reset\\')">שכחתי סיסמה</a></div>' +
-        '</div>';
-    }
-    
-    window['__' + APP_ID + '_switchLogin'] = showLogin;
-    
-    function normPhone(p){p = p.replace(/[\\s\\-\\(\\)]/g, ''); if(p.startsWith('+'))return p; if(p.startsWith('0'))return SMS_COUNTRY + p.substring(1); return SMS_COUNTRY + p;}
-    
-    async function sendSMSCode(phone){return new Promise((res, rej) => {try{if(recaptchaW === null){recaptchaW = grecaptcha.render(APP_ID + '-recaptcha', {sitekey: '6LeIxAcTAAAAAJcZVRqyHh71UMIEGNQ_MXjiZKhI', size: 'invisible', callback: async t => {try{const r = await fetch('https://identitytoolkit.googleapis.com/v1/accounts:sendVerificationCode?key=' + FB_API, {method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({phoneNumber: phone, recaptchaToken: t})}); const d = await r.json(); if(!r.ok)throw new Error(d.error?.message); res(d.sessionInfo);}catch(e){rej(e);}}});} grecaptcha.execute(recaptchaW);}catch(e){rej(e);}});}
-    
-    async function getUserPhone(tok, uid){try{const r = await fetch(FB_DB + '/' + APP_ID + '/phones/' + uid + '.json?auth=' + encodeURIComponent(tok)); if(!r.ok)return null; return await r.json();}catch(e){return null;}}
-    
-    async function completeLogin(em, uid, tok, rt, exp){
-      localStorage.setItem(AUTH_KEY, JSON.stringify({token: tok, refresh: rt, email: em, uid, exp: Date.now() + parseInt(exp)*1000}));
-      if(window.__rateLimit) window.__rateLimit.success();
-      if(window.__audit) window.__audit('login_success', em);
-      const screen = document.getElementById(APP_ID + '-login-screen'); if(screen) screen.remove();
-      const css = document.getElementById(APP_ID + '-login-css'); if(css) css.remove();
-      document.documentElement.style.visibility = '';
-      setTimeout(() => location.reload(), 100);
-    }
-    
-    window['__' + APP_ID + '_doLogin'] = async function(){
-      const rawEm = document.getElementById(APP_ID + '-lg-email').value.trim();
-      const em = applyAlias(rawEm);
-      const pw = document.getElementById(APP_ID + '-lg-pass').value;
-      if(!rawEm || !pw){_msg('מלא את כל השדות'); return;}
-      if(window.__rateLimit){try{window.__rateLimit.check();}catch(e){_msg(e.message); return;}}
-      _msg('⏳ מתחבר...', 'ok');
-      try{
-        const r = await fetch('https://identitytoolkit.googleapis.com/v1/accounts:signInWithPassword?key=' + FB_API, {method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({email: em, password: pw, returnSecureToken: true})});
-        const d = await r.json();
-        if(!r.ok) throw new Error(d.error?.message || 'שגיאה');
-        
-        if(WITH_SMS){
-          const phone = await getUserPhone(d.idToken, d.localId);
-          if(!phone){_msg('⚠️ אין טלפון רשום. כניסה ללא 2FA', 'ok'); setTimeout(() => completeLogin(d.email, d.localId, d.idToken, d.refreshToken, d.expiresIn), 1500); return;}
-          pendingLogin = {email: d.email, uid: d.localId, idToken: d.idToken, refreshToken: d.refreshToken, expiresIn: d.expiresIn, phone, password: pw};
-          showLogin('sms');
-          setTimeout(async () => {try{smsSession = await sendSMSCode(phone); document.getElementById(APP_ID + '-sms-info').innerHTML = '📱 נשלח SMS ל-' + phone.replace(/(.{4})(.+)(.{4})/,'$1****$3');}catch(e){_msg('❌ SMS: ' + e.message);}}, 100);
-          return;
-        }
-        
-        if(window.__encLS){try{await window.__encLS.init(pw);}catch(e){}}
-        await completeLogin(d.email, d.localId, d.idToken, d.refreshToken, d.expiresIn);
-      }catch(e){
-        if(window.__rateLimit) window.__rateLimit.fail();
-        if(window.__audit) window.__audit('login_fail', rawEm);
-        _msg('❌ ' + (e.message || 'שגיאה'));
-      }
-    };
-    
-    window['__' + APP_ID + '_verifySms'] = async function(){
-      const code = document.getElementById(APP_ID + '-sms-code').value.trim();
-      if(!code || code.length !== 6){_msg('הקלד קוד בן 6 ספרות'); return;}
-      if(!smsSession || !pendingLogin){_msg('❌ אין session'); return;}
-      try{
-        const r = await fetch('https://identitytoolkit.googleapis.com/v1/accounts:signInWithPhoneNumber?key=' + FB_API, {method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({sessionInfo: smsSession, code, idToken: pendingLogin.idToken})});
-        const d = await r.json();
-        if(!r.ok) throw new Error(d.error?.message || 'קוד שגוי');
-        if(window.__audit) window.__audit('sms_verified', pendingLogin.email);
-        if(window.__encLS){try{await window.__encLS.init(pendingLogin.password);}catch(e){}}
-        await completeLogin(pendingLogin.email, pendingLogin.uid, pendingLogin.idToken, pendingLogin.refreshToken, pendingLogin.expiresIn);
-      }catch(e){_msg('❌ ' + e.message);}
-    };
-    
-    window['__' + APP_ID + '_resendSms'] = async function(){
-      if(!pendingLogin) return;
-      _msg('⏳ שולח שוב...', 'ok');
-      try{smsSession = await sendSMSCode(pendingLogin.phone); _msg('✅ SMS חדש נשלח', 'ok');}catch(e){_msg('❌ ' + e.message);}
-    };
-    
-    window['__' + APP_ID + '_doSignup'] = async function(){
-      const name = document.getElementById(APP_ID + '-lg-name').value.trim();
-      const rawEm = document.getElementById(APP_ID + '-lg-email').value.trim();
-      const em = applyAlias(rawEm);
-      const pw = document.getElementById(APP_ID + '-lg-pass').value;
-      const pw2 = document.getElementById(APP_ID + '-lg-pass2').value;
-      const phone = WITH_SMS ? document.getElementById(APP_ID + '-lg-phone').value.trim() : '';
-      const code = INVITE_CODE ? document.getElementById(APP_ID + '-lg-code').value.trim() : '';
-      if(!name || !rawEm || !pw || !pw2){_msg('מלא את כל השדות'); return;}
-      if(WITH_SMS && !phone){_msg('❌ חובה מספר טלפון'); return;}
-      if(INVITE_CODE && code !== INVITE_CODE){_msg('❌ קוד הזמנה לא נכון'); return;}
-      if(pw.length < 8){_msg('❌ סיסמה: לפחות 8 תווים'); return;}
-      if(!/[a-zA-Z]/.test(pw) || !/[0-9]/.test(pw)){_msg('❌ סיסמה: אותיות + מספרים'); return;}
-      if(pw !== pw2){_msg('❌ הסיסמאות לא תואמות'); return;}
-      _msg('⏳ רושם...', 'ok');
-      try{
-        const r = await fetch('https://identitytoolkit.googleapis.com/v1/accounts:signUp?key=' + FB_API, {method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({email: em, password: pw, returnSecureToken: true})});
-        const d = await r.json();
-        if(!r.ok) throw new Error(d.error?.message || 'שגיאה');
-        // Save user name in APP_ID namespace
-        try{await fetch(FB_DB + '/' + APP_ID + '/users/' + d.localId + '/name.json?auth=' + encodeURIComponent(d.idToken), {method:'PUT', headers:{'Content-Type':'application/json'}, body: JSON.stringify(name)});}catch(e){}
-        if(WITH_SMS){try{await fetch(FB_DB + '/' + APP_ID + '/phones/' + d.localId + '.json?auth=' + encodeURIComponent(d.idToken), {method:'PUT', headers:{'Content-Type':'application/json'}, body: JSON.stringify(normPhone(phone))});}catch(e){}}
-        if(window.__audit) window.__audit('signup', em);
-        _msg('✅ נרשמת! מתחבר...', 'ok');
-        setTimeout(() => {showLogin('signin'); setTimeout(() => {document.getElementById(APP_ID + '-lg-email').value = rawEm; document.getElementById(APP_ID + '-lg-pass').value = pw; window['__' + APP_ID + '_doLogin']();}, 100);}, 800);
-      }catch(e){_msg('❌ ' + (e.message || 'שגיאה'));}
-    };
-    
-    window['__' + APP_ID + '_doReset'] = async function(){
-      const rawEm = document.getElementById(APP_ID + '-lg-email').value.trim();
-      const em = applyAlias(rawEm);
-      if(!rawEm){_msg('הכנס אימייל'); return;}
-      _msg('⏳ שולח...', 'ok');
-      try{
-        const r = await fetch('https://identitytoolkit.googleapis.com/v1/accounts:sendOobCode?key=' + FB_API, {method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({requestType:'PASSWORD_RESET', email: em})});
-        const d = await r.json();
-        if(!r.ok) throw new Error(d.error?.message || 'שגיאה');
-        if(window.__audit) window.__audit('reset_sent', em);
-        _msg('✅ נשלח! בדוק את האימייל שלך.<br><small style="opacity:0.7">פתח את הלינק ב-Chrome/Safari</small>', 'ok');
-      }catch(e){_msg('❌ ' + (e.message || 'שגיאה'));}
-    };
-    
-    function init(){
-      const screen = document.createElement('div');
-      screen.id = APP_ID + '-login-screen';
-      screen.innerHTML = renderLogin('signin');
-      document.body.appendChild(screen);
-      document.documentElement.style.visibility = '';
-    }
-    
-    if(document.readyState === 'loading') document.addEventListener('DOMContentLoaded', init);
-    else init();
-  })();
-  <\/script>`;
-}
-
-function generateFirebaseRules(appId){
-  return `{
-  "rules": {
-    "${appId}": {
-      "users": {
-        "$uid": {
-          ".read": "auth != null && auth.uid == $uid",
-          ".write": "auth != null && auth.uid == $uid"
-        }
-      },
-      "phones": {
-        "$uid": {
-          ".read": "auth != null && auth.uid == $uid",
-          ".write": "auth != null && auth.uid == $uid"
-        }
-      },
-      "audit": {
-        ".read": "auth != null",
-        ".write": "auth != null"
-      }
-    }
-  }
-}`;
-}
-
-function copyRules(){
-  if(!generatedRules) return;
-  navigator.clipboard.writeText(generatedRules).then(() => {
-    alert('✅ Rules הועתקו! \n\nעכשיו:\n1. פתח Firebase Console\n2. Realtime Database → Rules\n3. הדבק\n4. Publish');
-  }).catch(() => alert('העתק ידנית:\n\n' + generatedRules));
-}
-
-async function armor(){
-  if(!loadedContent){l('❌ לא נטען קובץ','err'); return;}
-  
-  // ═══ CRITICAL: Validate App ID ═══
-  const appId = appIdInput.value.trim();
-  const v = validateAppId(appId);
-  if(!v.ok){l('❌ ' + v.err, 'err'); return;}
-  
-  goBtn.disabled = true;
-  clearLog();
-  
-  const specialMap = {headers:'headers', csp:'csp', antidebug:'antidebug', firebaseAuth:'firebase-auth', invite:'invite', biometric:'biometric', sms2fa:'sms2fa', rate:'rate', audit:'audit', fingerprint:'fingerprint', encryptLS:'encrypt-ls', sessionTimeout:'session-timeout', clipboardClear:'clipboard-clear'};
-  const opts = {};
-  for(const key in specialMap){if(scanResults[key]){opts[key] = false; continue;} const cb = document.getElementById('opt-' + specialMap[key]); opts[key] = cb ? cb.checked : false;}
-  
+function getSites(){
   try{
-    let content = loadedContent;
-    const sizeBefore = content.length;
-    const hebrewBefore = (content.match(/[\u0590-\u05FF]/g)||[]).length;
-    
-    l('═══ הכנה ═══', 'big');
-    l('🏷️ App ID: ' + appId, 'info');
-    l('📧 Email alias: user@gmail.com → user+' + appId + '@gmail.com', 'info');
-    l('💾 Firebase path: /' + appId + '/', 'info');
-    l('💿 localStorage prefix: ' + appId + '_*', 'info');
-    
-    const selected = Object.keys(opts).filter(k => opts[k]);
-    l('\n🎯 נוסיף ' + selected.length + ' שכבות חדשות', 'info');
-    
-    if(selected.length === 0){l('\nℹ️ לא נבחרו שכבות', 'warn'); goBtn.disabled = false; return;}
-    
-    const headCloseIdx = content.search(/<\/head>/i);
-    if(headCloseIdx < 0){l('❌ לא נמצא </head>', 'err'); goBtn.disabled = false; return;}
-    
-    let inject = '\n';
-    const apis = detectAPIs(content);
-    
-    l('\n═══ בניית שכבות ═══', 'big');
-    
-    if(opts.headers){inject += HEADERS + '\n'; l('✅ Security Headers', 'ok');}
-    if(opts.csp){const needsSMS = opts.sms2fa || scanResults.sms2fa; const needsFB = opts.firebaseAuth || scanResults.firebaseAuth; inject += buildCSP(apis, content, needsFB, needsSMS) + '\n'; l('✅ CSP', 'ok');}
-    if(opts.rate){inject += buildRateLimit(appId); l('✅ Rate Limit (key: ' + appId + '_rl)', 'ok');}
-    if(opts.audit){inject += buildAudit(appId); l('✅ Audit Log (key: ' + appId + '_audit)', 'ok');}
-    if(opts.fingerprint){inject += FINGERPRINT; l('✅ Device Fingerprint', 'ok');}
-    if(opts.encryptLS){inject += buildEncryptLS(appId); l('✅ Encrypted LS (prefix: ' + appId + '_)', 'ok');}
-    if(opts.clipboardClear){inject += CLIPBOARD_CLEAR; l('✅ Clipboard Clear', 'ok');}
-    if(opts.sessionTimeout){inject += buildSessionTimeout(appId); l('✅ Session Timeout', 'ok');}
-    if(opts.antidebug){inject += ANTIDEBUG; l('✅ Anti-debug', 'ok');}
-    
-    if(opts.firebaseAuth){
-      const apiKey = document.getElementById('cfg-fb-api').value.trim();
-      const dbUrl = document.getElementById('cfg-fb-db').value.trim();
-      if(!apiKey || !dbUrl){l('❌ חסרים פרטי Firebase', 'err'); goBtn.disabled = false; return;}
-      const inv = opts.invite ? document.getElementById('cfg-invite-val').value.trim() : '';
-      const title = document.getElementById('cfg-display-name').value || '🚀 אפליקציה';
-      const subtitle = document.getElementById('cfg-subtitle').value || 'התחבר';
-      const smsCountry = opts.sms2fa ? (document.getElementById('cfg-sms-country').value.trim() || '+972') : '+972';
-      inject += buildIsolatedAuth(appId, apiKey, dbUrl, inv, title, subtitle, opts.biometric, opts.sms2fa, smsCountry);
-      l('✅ Firebase Auth מבודד (path: /' + appId + '/, alias: +' + appId + ')', 'ok');
-      
-      // Generate Firebase Rules
-      generatedRules = generateFirebaseRules(appId);
-      rulesCode.textContent = generatedRules;
-      rulesBox.classList.add('show');
+    const s=localStorage.getItem('deploy_sites');
+    const deleted=getDeletedIds();
+    if(s===null){
+      // פעם ראשונה — שומר DEFAULT בלי המחוקים
+      const initial=DEFAULT_SITES.filter(x=>!deleted.includes(x.id));
+      localStorage.setItem('deploy_sites',JSON.stringify(initial));
+      return initial;
     }
-    
-    content = content.substring(0, headCloseIdx) + inject + content.substring(headCloseIdx);
-    
-    const sizeAfter = content.length;
-    const hebrewAfter = (content.match(/[\u0590-\u05FF]/g)||[]).length;
-    
-    l('\n═══ בדיקת שלמות ═══', 'big');
-    l('📏 ' + (sizeAfter/1024).toFixed(0) + ' KB (+' + ((sizeAfter-sizeBefore)/1024).toFixed(1) + ' KB)', 'info');
-    if(hebrewAfter < hebrewBefore){l('❌ עברית קיימת נשברה!', 'err'); goBtn.disabled = false; return;}
-    l('✅ עברית שלמה (' + hebrewAfter.toLocaleString() + ')', 'ok');
-    
-    const blob = new Blob([content], {type:'text/html;charset=utf-8'});
-    const url = URL.createObjectURL(blob);
-    dlBtn.href = url;
-    const name = loadedFile.name.replace(/\.html?$/i, '');
-    dlBtn.download = name + '-' + appId + '.html';
-    dlBtn.textContent = '⬇️ הורד ' + name + '-' + appId + '.html';
-    dlBtn.classList.add('show');
-    
-    l('\n═══ 🎉 הושלם ═══', 'big');
-    l('🛡️ ' + selected.length + ' שכבות נוספו עם namespace "' + appId + '"', 'ok');
-    l('🔒 אפס התנגשות עם הודיה/רינת — מובטח!', 'ok');
-    if(opts.firebaseAuth){
-      l('\n⚠️ אל תשכח להעתיק את ה-Firebase Rules!', 'warn');
-      l('   תראה אותם למטה בתיבה הירוקה', 'warn');
-    }
-    
-    goBtn.textContent = '🔄 קובץ חדש';
-    goBtn.disabled = false;
+    return (JSON.parse(s)||[]).filter(x=>!deleted.includes(x.id));
+  }catch(e){return DEFAULT_SITES;}
+}
+function saveSites(s){localStorage.setItem('deploy_sites',JSON.stringify(s));}
+function getToken(){return localStorage.getItem('gh_deploy_token')||'';}
+
+let _toastTimer;
+function toast(msg,isErr=false){
+  const t=document.getElementById('toast');
+  t.textContent=msg;t.className='toast'+(isErr?' err':'')+' show';
+  clearTimeout(_toastTimer);_toastTimer=setTimeout(()=>t.classList.remove('show'),3200);
+}
+
+function saveToken(){
+  const t=document.getElementById('gh-token').value.trim();
+  if(!t)return;
+  localStorage.setItem('gh_deploy_token',t);
+  document.getElementById('gh-token').value='';
+  showTokenStatus();toast('✅ Token נשמר!');
+}
+function clearToken(){
+  localStorage.removeItem('gh_deploy_token');showTokenStatus();toast('🗑 Token נמחק');
+}
+function showTokenStatus(){
+  const el=document.getElementById('token-status');
+  el.innerHTML=getToken()
+    ?'<span style="color:#4ade80">✅ Token מחובר</span> &nbsp;·&nbsp; <span style="color:#475569;cursor:pointer;text-decoration:underline" onclick="clearToken()">נקה</span>'
+    :'<span style="color:#f87171">⚠️ Token לא הוגדר</span>';
+}
+
+function renderSites(){
+  document.getElementById('sites-grid').innerHTML=getSites().map(s=>{
+    const url=`https://${s.owner}.github.io/${s.repo}`;
+    const isSelf=(s.repo==='deploy-panel');
+    return`<div class="site-card">
+      <div class="site-card-top">
+        <div>
+          <div class="site-name">${s.name}</div>
+          <div class="site-repo">${s.owner}/${s.repo}</div>
+          <a class="site-link" href="${url}" target="_blank">🌐 פתח אתר</a>
+        </div>
+        <div class="card-actions">
+          <button class="edit-btn" onclick="moveSite('${s.id}',-1)" style="padding:6px 8px">▲</button>
+          <button class="edit-btn" onclick="moveSite('${s.id}',1)" style="padding:6px 8px">▼</button>
+          <button class="copy-btn" id="copy-${s.id}" onclick="copyLink('${s.id}','${url}')">🔗</button>
+          <button class="edit-btn" onclick="openEditor('${s.repo}','${s.owner}','${s.name}')">✏️</button>
+          <button class="del-btn" onclick="confirmDelete('${s.id}','${s.name}')">🗑</button>
+        </div>
+      </div>
+      <input type="file" accept=".html" id="file-${s.id}" style="display:none" onchange="doUpload('${s.id}','${s.repo}','${s.owner}',this)">
+      <button class="deploy-btn" id="btn-${s.id}" onclick="document.getElementById('file-${s.id}').click()">🚀 בחר קובץ ופרסם</button>
+      ${isSelf?`<button class="self-btn" id="self-btn-${s.id}" onclick="deploySelf('${s.id}','${s.repo}','${s.owner}')">♻️ עדכן את הצינור עצמו (מהיר)</button>`:''}
+      <div class="prog" id="prog-${s.id}"><div class="prog-bar" id="progbar-${s.id}" style="width:0%"></div></div>
+      <div class="card-status" id="status-${s.id}"></div>
+    </div>`;
+  }).join('');
+}
+
+// העלאה עצמית — לוקחת את ה-HTML של הדף הנוכחי ומעלה לגיטהאב
+async function deploySelf(id,repo,owner){
+  const token=getToken();if(!token){toast('⚠️ נא להכניס Token קודם',true);return;}
+  const btn=document.getElementById('self-btn-'+id),st=document.getElementById('status-'+id);
+  const prog=document.getElementById('prog-'+id),pb=document.getElementById('progbar-'+id);
+  if(!confirm('♻️ לעדכן את הצינור עצמו לגיטהאב?\n\nהגרסה שרצה עכשיו בדפדפן תעלה ותחליף את זו שבגיטהאב.'))return;
+  btn.disabled=true;btn.textContent='⏳ מעלה...';prog.style.display='block';pb.style.width='20%';
+  st.textContent='אוסף HTML נוכחי...';st.className='card-status';
+  try{
+    // שליפת ה-HTML המלא של הדף הנוכחי
+    const content='<!DOCTYPE html>\n'+document.documentElement.outerHTML;
+    const encoded=btoa(unescape(encodeURIComponent(content)));
+    pb.style.width='50%';st.textContent='מעלה לגיטהאב...';
+    const apiUrl=`https://api.github.com/repos/${owner}/${repo}/contents/index.html`;
+    const chk=await (await fetch(apiUrl+`?t=${Date.now()}`,{headers:{'Authorization':'token '+token,'Accept':'application/vnd.github.v3+json','Cache-Control':'no-cache'}})).json();
+    const body={message:'Self-update via deploy panel',content:encoded};if(chk.sha)body.sha=chk.sha;
+    pb.style.width='80%';
+    const d=await (await fetch(apiUrl,{method:'PUT',headers:{'Authorization':'token '+token,'Accept':'application/vnd.github.v3+json','Content-Type':'application/json'},body:JSON.stringify(body)})).json();
+    if(!d.content)throw new Error(d.message||'שגיאה בהעלאה');
+    pb.style.width='100%';
+    btn.textContent='✅ עלה! מרענן...';btn.style.background='#059669';
+    st.innerHTML=`✅ <a href="https://${owner}.github.io/${repo}" target="_blank" style="color:#5eead4;text-decoration:underline;font-weight:700">פתח אתר עכשיו ←</a>`;
+    toast('✅ הצינור עודכן בהצלחה!');
+    setTimeout(()=>location.reload(),4000);
   }catch(e){
-    l('\n❌ שגיאה: ' + e.message, 'err');
-    console.error(e);
-    goBtn.disabled = false;
+    btn.textContent='❌ שגיאה';btn.disabled=false;st.textContent=e.message;st.className='card-status err';
+    toast('❌ '+e.message,true);
+    setTimeout(()=>{btn.textContent='♻️ עדכן את הצינור עצמו (מהיר)';prog.style.display='none';pb.style.width='0%';},3000);
   }
 }
 
-// Initialize
-updatePreview();
+async function enablePages(owner,repo,token){
+  try{await fetch(`https://api.github.com/repos/${owner}/${repo}/pages`,{method:'POST',
+    headers:{'Authorization':'token '+token,'Accept':'application/vnd.github.v3+json','Content-Type':'application/json'},
+    body:JSON.stringify({source:{branch:'main',path:'/'}})});}catch(e){}
+}
+
+async function doUpload(id,repo,owner,input){
+  const file=input.files[0];if(!file)return;
+  const token=getToken();if(!token){toast('⚠️ נא להכניס Token קודם',true);return;}
+  const btn=document.getElementById('btn-'+id),st=document.getElementById('status-'+id);
+  const prog=document.getElementById('prog-'+id),pb=document.getElementById('progbar-'+id);
+  btn.disabled=true;btn.textContent='⏳ מעלה...';prog.style.display='block';pb.style.width='20%';
+  st.textContent='קורא קובץ...';st.className='card-status';
+  try{
+    const content=await new Promise((res,rej)=>{const r=new FileReader();r.onload=e=>res(e.target.result);r.onerror=rej;r.readAsText(file);});
+    const encoded=btoa(unescape(encodeURIComponent(content)));
+    pb.style.width='50%';st.textContent='מעלה לגיטהאב...';
+    const apiUrl=`https://api.github.com/repos/${owner}/${repo}/contents/index.html`;
+    const chk=await (await fetch(apiUrl,{headers:{'Authorization':'token '+token,'Accept':'application/vnd.github.v3+json'}})).json();
+    const body={message:'Update via deploy panel',content:encoded};if(chk.sha)body.sha=chk.sha;
+    pb.style.width='75%';
+    const d=await (await fetch(apiUrl,{method:'PUT',headers:{'Authorization':'token '+token,'Accept':'application/vnd.github.v3+json','Content-Type':'application/json'},body:JSON.stringify(body)})).json();
+    if(!d.content)throw new Error(d.message||'שגיאה בהעלאה');
+    pb.style.width='90%';st.textContent='מפעיל Pages...';
+    await enablePages(owner,repo,token);
+    pb.style.width='100%';
+    btn.textContent='✅ עלה!';btn.style.background='#059669';
+    st.innerHTML=`✅ <a href="https://${owner}.github.io/${repo}" target="_blank" style="color:#5eead4;text-decoration:underline;font-weight:700">פתח אתר עכשיו ←</a>`;
+    toast('✅ '+repo+' עלה בהצלחה!');
+    // אם עדכנו את הצינור עצמו — נרענן אחרי 4 שניות
+    if(repo==='deploy-panel'){
+      st.textContent='מרענן...';
+      setTimeout(()=>location.reload(),4000);
+      return;
+    }
+    setTimeout(()=>{btn.textContent='🚀 בחר קובץ ופרסם';btn.disabled=false;btn.style.background='';st.textContent='';st.innerHTML='';prog.style.display='none';pb.style.width='0%';input.value='';},10000);
+  }catch(e){
+    btn.textContent='❌ שגיאה';btn.disabled=false;st.textContent=e.message;st.className='card-status err';
+    toast('❌ '+e.message,true);
+    setTimeout(()=>{btn.textContent='🚀 בחר קובץ ופרסם';prog.style.display='none';pb.style.width='0%';},3000);
+  }
+}
+
+async function createAndDeploy(){
+  const name=document.getElementById('new-name').value.trim();
+  const repo=document.getElementById('new-repo').value.trim();
+  const owner=document.getElementById('new-owner').value.trim();
+  const file=document.getElementById('new-file').files[0];
+  const token=getToken();
+  if(!name||!repo){toast('⚠️ נא למלא שם ושם ריפו',true);return;}
+  if(!file){toast('⚠️ נא לבחור קובץ HTML',true);return;}
+  if(!token){toast('⚠️ נא להכניס Token קודם',true);return;}
+  const btn=document.getElementById('btn-create');
+  const prog=document.getElementById('new-prog'),pb=document.getElementById('new-progbar'),step=document.getElementById('new-step');
+  btn.disabled=true;prog.style.display='block';
+  try{
+    step.textContent='📄 קורא קובץ...';pb.style.width='10%';
+    const content=await new Promise((res,rej)=>{const r=new FileReader();r.onload=e=>res(e.target.result);r.onerror=rej;r.readAsText(file);});
+    const encoded=btoa(unescape(encodeURIComponent(content)));
+    step.textContent='🏗️ יוצר ריפו...';pb.style.width='25%';
+    const cr=await (await fetch('https://api.github.com/user/repos',{method:'POST',
+      headers:{'Authorization':'token '+token,'Accept':'application/vnd.github.v3+json','Content-Type':'application/json'},
+      body:JSON.stringify({name:repo,private:false,auto_init:false})})).json();
+    const exists=cr.message?.toLowerCase().includes('already exist');
+    if(cr.errors&&!exists)throw new Error(cr.message);
+    if(!exists)await new Promise(r=>setTimeout(r,1500));
+    step.textContent='⬆️ מעלה קובץ...';pb.style.width='55%';
+    const apiUrl=`https://api.github.com/repos/${owner}/${repo}/contents/index.html`;
+    const chk=await (await fetch(apiUrl,{headers:{'Authorization':'token '+token,'Accept':'application/vnd.github.v3+json'}})).json();
+    const body={message:'Initial deploy',content:encoded};if(chk.sha)body.sha=chk.sha;
+    const up=await (await fetch(apiUrl,{method:'PUT',headers:{'Authorization':'token '+token,'Accept':'application/vnd.github.v3+json','Content-Type':'application/json'},body:JSON.stringify(body)})).json();
+    if(!up.content)throw new Error(up.message||'שגיאה בהעלאה');
+    step.textContent='🌐 מפעיל Pages...';pb.style.width='85%';
+    await enablePages(owner,repo,token);
+    pb.style.width='100%';step.textContent='';
+    const sites=getSites();sites.push({id:'site_'+Date.now(),name,repo,owner});saveSites(sites);
+    ['new-name','new-repo'].forEach(id=>document.getElementById(id).value='');
+    document.getElementById('new-file-lbl').textContent='';document.getElementById('new-file').value='';
+    document.getElementById('add-form').classList.remove('show');
+    btn.disabled=false;prog.style.display='none';pb.style.width='0%';
+    renderSites();toast('✅ '+repo+' נוצר! יהיה זמין תוך דקה');
+  }catch(e){
+    step.textContent='❌ '+e.message;btn.disabled=false;toast('❌ '+e.message,true);
+    setTimeout(()=>{step.textContent='';prog.style.display='none';pb.style.width='0%';},4000);
+  }
+}
+
+function toggleAddForm(){document.getElementById('add-form').classList.toggle('show');}
+
+// העתקת קישור של אתר ללוח — עם fallback לדפדפנים ישנים
+async function copyLink(id,url){
+  const btn=document.getElementById('copy-'+id);
+  const original=btn.textContent;
+  try{
+    // שיטה מודרנית — navigator.clipboard (דורש HTTPS)
+    if(navigator.clipboard&&window.isSecureContext){
+      await navigator.clipboard.writeText(url);
+    }else{
+      // fallback ידני — עובד בכל דפדפן
+      const ta=document.createElement('textarea');
+      ta.value=url;ta.style.position='fixed';ta.style.left='-9999px';ta.style.top='0';
+      document.body.appendChild(ta);ta.focus();ta.select();
+      const ok=document.execCommand('copy');
+      document.body.removeChild(ta);
+      if(!ok)throw new Error('fallback failed');
+    }
+    // משוב ויזואלי
+    btn.textContent='✅';btn.classList.add('done');
+    toast('📋 הקישור הועתק!');
+    setTimeout(()=>{btn.textContent=original;btn.classList.remove('done');},1500);
+  }catch(e){
+    toast('❌ לא הצלחתי להעתיק',true);
+  }
+}
+function moveSite(id,dir){
+  const sites=getSites();
+  const i=sites.findIndex(s=>s.id===id);
+  const j=i+dir;
+  if(j<0||j>=sites.length)return;
+  [sites[i],sites[j]]=[sites[j],sites[i]];
+  saveSites(sites);renderSites();
+}
+let _delId='';
+function confirmDelete(id,name){
+  _delId=id;
+  document.getElementById('del-modal-name').textContent=name;
+  document.getElementById('del-modal').style.display='flex';
+}
+function closeDelModal(){document.getElementById('del-modal').style.display='none';_delId='';}
+function doDelete(){
+  if(!_delId)return;
+  const deleted=getDeletedIds();
+  if(!deleted.includes(_delId))deleted.push(_delId);
+  localStorage.setItem('deleted_ids',JSON.stringify(deleted));
+  saveSites(getSites().filter(s=>s.id!==_delId));
+  closeDelModal();renderSites();
+  toast('🗑 נמחק');
+}
+function downloadEdit(){
+  const content=document.getElementById('edit-textarea').value;
+  if(!content)return;
+  const a=document.createElement('a');
+  a.href='data:text/html;charset=utf-8,'+encodeURIComponent(content);
+  a.download=(editCtx.repo||'site')+'.html';
+  a.click();
+}
+let editCtx={repo:'',owner:'',sha:''};
+async function openEditor(repo,owner,name){
+  const token=getToken();if(!token){toast('⚠️ נא להכניס Token קודם',true);return;}
+  document.getElementById('edit-title').textContent='✏️ '+name;
+  document.getElementById('edit-textarea').value='';
+  document.getElementById('edit-overlay').classList.remove('hidden');
+  const st=document.getElementById('edit-status');st.textContent='⏳ טוען קובץ...';st.style.color='#5eead4';
+  try{
+    const r=await fetch(`https://api.github.com/repos/${owner}/${repo}/contents/index.html`,
+      {headers:{'Authorization':'token '+token,'Accept':'application/vnd.github.v3+json'}});
+    const d=await r.json();
+    if(!d.content)throw new Error(d.message||'קובץ לא נמצא');
+    editCtx={repo,owner,sha:d.sha};
+    document.getElementById('edit-textarea').value=decodeURIComponent(escape(atob(d.content.replace(/\n/g,''))));
+    st.textContent='';
+  }catch(e){st.textContent='❌ '+e.message;st.style.color='#f87171';}
+}
+function closeEditor(){
+  document.getElementById('edit-overlay').classList.add('hidden');
+  document.getElementById('edit-textarea').value='';
+  document.getElementById('edit-status').textContent='';
+  const btn=document.getElementById('edit-save-btn');
+  btn.textContent='💾 שמור ופרסם';btn.disabled=false;btn.style.background='';
+  editCtx={repo:'',owner:'',sha:''};
+}
+async function saveEdit(){
+  const token=getToken();if(!token){toast('⚠️ אין Token',true);return;}
+  const content=document.getElementById('edit-textarea').value;
+  const st=document.getElementById('edit-status'),btn=document.getElementById('edit-save-btn');
+  btn.disabled=true;btn.textContent='⏳ שומר...';st.textContent='מעלה...';st.style.color='#5eead4';
+  try{
+    const encoded=btoa(unescape(encodeURIComponent(content)));
+    const body={message:'Edit via deploy panel',content:encoded,sha:editCtx.sha};
+    const r=await fetch(`https://api.github.com/repos/${editCtx.owner}/${editCtx.repo}/contents/index.html`,
+      {method:'PUT',headers:{'Authorization':'token '+token,'Accept':'application/vnd.github.v3+json','Content-Type':'application/json'},body:JSON.stringify(body)});
+    const d=await r.json();
+    if(!d.content)throw new Error(d.message||'שגיאה');
+    st.textContent='✅ נשמר! מתעדכן תוך דקה';btn.textContent='✅ נשמר!';btn.style.background='#059669';
+    toast('✅ '+editCtx.repo+' נשמר!');
+    setTimeout(()=>closeEditor(),2500);
+  }catch(e){
+    st.textContent='❌ '+e.message;st.style.color='#f87171';
+    btn.disabled=false;btn.textContent='💾 שמור ופרסם';btn.style.background='';
+    toast('❌ '+e.message,true);
+  }
+}
+
+window.onload=()=>{showTokenStatus();renderSites();};
 </script>
 </body>
 </html>
