@@ -3,6 +3,10 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
+<meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline'; img-src 'self' data:; font-src 'self' data:; connect-src 'self' https://identitytoolkit.googleapis.com https://securetoken.googleapis.com https://api.github.com https://deploy-panel-fa3d7-default-rtdb.europe-west1.firebasedatabase.app; form-action 'self'; base-uri 'self'; object-src 'none'; upgrade-insecure-requests">
+<meta name="referrer" content="strict-origin-when-cross-origin">
+<meta http-equiv="X-Content-Type-Options" content="nosniff">
+<meta name="robots" content="noindex,nofollow,noarchive,nosnippet">
 <title>🚀 לוח פרסום</title>
 <style>
 *{box-sizing:border-box;margin:0;padding:0}
@@ -202,6 +206,16 @@ if(location.protocol==='http:' && location.hostname!=='localhost' && location.ho
   location.href='https:'+location.href.substring(5);
 }
 
+// ── הגנה מ-Clickjacking (framebuster) ──
+try{if(window.top!==window.self){window.top.location=window.self.location;}}catch(e){
+  document.documentElement.style.display='none';
+  document.write('<div style="background:#0f172a;color:#f87171;padding:40px;font-family:system-ui;text-align:center;direction:rtl">⚠️ האתר הזה לא יכול לרוץ בתוך iframe מטעמי אבטחה</div>');
+  throw new Error('Frame blocked');
+}
+
+// ── סניטיזציה של מחרוזות לפני innerHTML ──
+function _esc(s){return String(s==null?'':s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;').replace(/'/g,'&#39;');}
+
 const passwordPolicy={
   check(pw){
     if(!pw||pw.length<8) return {ok:false,msg:'הסיסמה חייבת להיות לפחות 8 תווים'};
@@ -234,27 +248,53 @@ const deviceFingerprint={
 
 const rateLimit={
   _key:'dp_fb_ratelimit',
-  _load(){try{return JSON.parse(localStorage.getItem(this._key)||'{"fails":0,"blockedUntil":0}');}catch(e){return {fails:0,blockedUntil:0};}},
-  _save(d){try{localStorage.setItem(this._key,JSON.stringify(d));}catch(e){}},
-  check(){
-    const d=this._load();
+  _decoy:'dp_fb_ratelimit',
+  async _load(){
+    try{
+      const v=await secureStorage.getItem(this._key);
+      if(v&&typeof v==='object')return v;
+    }catch(e){}
+    try{return JSON.parse(localStorage.getItem(this._decoy)||'{"fails":0,"blockedUntil":0}');}catch(e){return {fails:0,blockedUntil:0};}
+  },
+  async _save(d){try{await secureStorage.setItem(this._key,d);}catch(e){try{localStorage.setItem(this._decoy,JSON.stringify(d));}catch(e2){}}},
+  async check(){
+    const d=await this._load();
     if(d.blockedUntil>Date.now()){
       const min=Math.ceil((d.blockedUntil-Date.now())/60000);
       throw new Error(`יותר מדי נסיונות. נסה שוב בעוד ${min} דקות`);
     }
   },
-  fail(){
-    const d=this._load();
+  async fail(){
+    const d=await this._load();
     d.fails=(d.fails||0)+1;
     if(d.fails>=RATE_LIMIT.MAX_ATTEMPTS){
       d.blockedUntil=Date.now()+(RATE_LIMIT.BLOCK_MINUTES*60000);
       d.fails=0;
     }
-    this._save(d);
+    await this._save(d);
     const left=RATE_LIMIT.MAX_ATTEMPTS-d.fails;
     return left>0?`נותרו ${left} נסיונות`:null;
   },
-  success(){this._save({fails:0,blockedUntil:0});}
+  async success(){await this._save({fails:0,blockedUntil:0});}
+};
+
+// ── Cooldown לפעולות רגישות (איפוס סיסמה / שליחת קוד) ──
+const actionCooldown={
+  _key:'dp_action_cd',
+  _seconds:60,
+  async check(action){
+    let map={};
+    try{map=(await secureStorage.getItem(this._key))||{};}catch(e){}
+    const last=map[action]||0;
+    const wait=this._seconds*1000-(Date.now()-last);
+    if(wait>0)throw new Error(`נא להמתין ${Math.ceil(wait/1000)} שניות לפני ניסיון נוסף`);
+  },
+  async mark(action){
+    let map={};
+    try{map=(await secureStorage.getItem(this._key))||{};}catch(e){}
+    map[action]=Date.now();
+    await secureStorage.setItem(this._key,map);
+  }
 };
 
 const session={
@@ -361,7 +401,7 @@ const auth={
   },
 
   async signIn(email,password){
-    rateLimit.check();
+    await rateLimit.check();
     email=(email||'').trim().toLowerCase();
     const r=await fetch('https://identitytoolkit.googleapis.com/v1/accounts:signInWithPassword?key='+FB_API_KEY,{
       method:'POST',
@@ -370,11 +410,11 @@ const auth={
     });
     if(!r.ok){
       const err=await r.json();
-      const remaining=rateLimit.fail();
+      const remaining=await rateLimit.fail();
       const msg=this._errMsg(err);
       throw new Error(remaining?`${msg} (${remaining})`:msg);
     }
-    rateLimit.success();
+    await rateLimit.success();
     const d=await r.json();
     if((d.email||'').toLowerCase()!==ALLOWED_EMAIL){
       throw new Error('אין לך הרשאה ללוח הפרסום');
@@ -400,7 +440,7 @@ const auth={
   },
 
   async signUp(email,password,name){
-    rateLimit.check();
+    await rateLimit.check();
     email=(email||'').trim().toLowerCase();
     if(email!==ALLOWED_EMAIL) throw new Error('אין לך הרשאה להירשם ללוח הפרסום');
     if(!name||name.trim().length<2) throw new Error('חובה למלא שם');
@@ -464,6 +504,7 @@ const auth={
   },
 
   async resetPassword(email){
+    await actionCooldown.check('reset');
     const r=await fetch('https://identitytoolkit.googleapis.com/v1/accounts:sendOobCode?key='+FB_API_KEY,{
       method:'POST',
       headers:{'Content-Type':'application/json'},
@@ -474,6 +515,7 @@ const auth={
       })
     });
     if(!r.ok){const err=await r.json();throw new Error(this._errMsg(err));}
+    await actionCooldown.mark('reset');
   },
 
   async confirmPasswordReset(oobCode,newPassword){
@@ -756,7 +798,7 @@ async function initResetConfirm(oobCode){
   showLogin('resetConfirm');
   try{
     const data=await auth.verifyOobCode(oobCode);
-    document.getElementById('reset-email').innerHTML='איפוס סיסמה עבור:<br><b style="color:#5eead4">'+data.email+'</b>';
+    document.getElementById('reset-email').innerHTML='איפוס סיסמה עבור:<br><b style="color:#5eead4">'+_esc(data.email)+'</b>';
     document.getElementById('reset-fields-wrap').style.display='block';
     document.getElementById('rc-btn').style.display='flex';
   }catch(e){
@@ -811,8 +853,9 @@ function _showCredsScreen(email,pass,ok){
   if(emailEl)emailEl.innerHTML=ok?'✅ הסיסמה שונתה בהצלחה!':'⚠️ הסיסמה נשמרה';
   const msgEl=document.getElementById('login-msg');
   if(!msgEl)return;
-  const e2=email.replace(/'/g,"\\'");
-  const p2=pass.replace(/'/g,"\\'");
+  const escAttr=s=>String(s).replace(/\\/g,'\\\\').replace(/'/g,"\\'").replace(/"/g,'&quot;');
+  const e2=escAttr(email);
+  const p2=escAttr(pass);
   const stat=ok?'<div style="background:rgba(16,185,129,0.12);border:1px solid #10b981;border-radius:10px;padding:10px;color:#6ee7b7;font-size:13px;margin-bottom:12px;text-align:center">🔒 אומת: ההתחברות עובדת</div>':'<div style="background:rgba(94,234,212,0.12);border:1px solid #5eead4;border-radius:10px;padding:10px;color:#7dd3fc;font-size:13px;margin-bottom:12px;text-align:center">⚠️ שמור את הפרטים ונסה ידנית</div>';
   msgEl.innerHTML=stat+
     '<div style="background:linear-gradient(135deg,rgba(94,234,212,0.15),rgba(13,148,136,0.08));border:2px solid #5eead4;border-radius:14px;padding:16px;margin-bottom:14px">'+
@@ -820,11 +863,11 @@ function _showCredsScreen(email,pass,ok){
       '<div style="color:rgba(255,255,255,0.75);font-size:12px;text-align:center;margin-bottom:12px">תצטרך את זה בכניסה הבאה</div>'+
       '<div style="background:rgba(0,0,0,0.35);border-radius:10px;padding:10px;margin-bottom:8px">'+
         '<div style="color:#93c5fd;font-size:11px;font-weight:700;margin-bottom:4px">📧 כתובת:</div>'+
-        '<div style="color:#fff;font-family:monospace;font-size:14px;word-break:break-all;user-select:all">'+email+'</div>'+
+        '<div style="color:#fff;font-family:monospace;font-size:14px;word-break:break-all;user-select:all">'+_esc(email)+'</div>'+
       '</div>'+
       '<div style="background:rgba(0,0,0,0.35);border-radius:10px;padding:10px;margin-bottom:12px">'+
         '<div style="color:#93c5fd;font-size:11px;font-weight:700;margin-bottom:4px">🔑 סיסמה:</div>'+
-        '<div style="color:#fff;font-family:monospace;font-size:14px;word-break:break-all;user-select:all">'+pass+'</div>'+
+        '<div style="color:#fff;font-family:monospace;font-size:14px;word-break:break-all;user-select:all">'+_esc(pass)+'</div>'+
       '</div>'+
       "<button onclick=\"_copyCreds('"+e2+"','"+p2+"')\" style=\"width:100%;background:linear-gradient(135deg,#7c3aed,#5b21b6);color:#fff;border:none;padding:12px;border-radius:10px;font-size:14px;font-weight:800;cursor:pointer;font-family:inherit;margin-bottom:8px\">📋 העתק הכל</button>"+
       "<button onclick=\"_shareCreds('"+e2+"','"+p2+"')\" style=\"width:100%;background:linear-gradient(135deg,#25D366,#128C7E);color:#fff;border:none;padding:12px;border-radius:10px;font-size:14px;font-weight:800;cursor:pointer;font-family:inherit\">📤 שלח לוואטסאפ</button>"+
@@ -839,7 +882,7 @@ function _copyCreds(email,pass){
 }
 function _shareCreds(email,pass){
   const t='פרטי כניסה:\nכתובת: '+email+'\nסיסמה: '+pass;
-  window.open('https://wa.me/?text='+encodeURIComponent(t),'_blank');
+  window.open('https://wa.me/?text='+encodeURIComponent(t),'_blank','noopener,noreferrer');
 }
 async function _finishReset(email,pass){
   try{await auth.signIn(email,pass);}catch(e){}
@@ -991,7 +1034,7 @@ async function openMyAccount(){
   const u=auth.user||{};
   box.innerHTML=`<div class="login-box">
     <div class="login-title">👤 החשבון שלי</div>
-    <div class="login-sub">${u.name||''}<br><span style="font-size:12px;opacity:0.7">${u.email||''}</span></div>
+    <div class="login-sub">${_esc(u.name||'')}<br><span style="font-size:12px;opacity:0.7">${_esc(u.email||'')}</span></div>
     <div id="login-msg"></div>
     <div class="login-field"><label>🔑 סיסמה חדשה (אופציונלי)</label><input id="ma-pass" type="password" placeholder="לפחות 8 תווים, אותיות ומספרים" oninput="updatePwStrengthMA()"><div id="ma-strength" style="height:4px;border-radius:2px;background:rgba(255,255,255,0.1);margin-top:6px;overflow:hidden"><div id="ma-bar" style="height:100%;width:0;background:#ef4444;transition:width .3s,background .3s"></div></div><div id="ma-hint" style="font-size:11px;color:rgba(255,255,255,0.5);margin-top:4px"></div></div>
     <div class="login-field"><label>🔒 אימות סיסמה חדשה</label><input id="ma-pass2" type="password" placeholder="הקלד שוב לאימות"></div>
@@ -1135,29 +1178,31 @@ function showTokenStatus(){
 }
 
 function renderSites(){
+  const ea=s=>String(s==null?'':s).replace(/\\/g,'\\\\').replace(/'/g,"\\'").replace(/"/g,'&quot;');
   document.getElementById('sites-grid').innerHTML=getSites().map(s=>{
-    const url=`https://${s.owner}.github.io/${s.repo}`;
+    const url=`https://${encodeURIComponent(s.owner)}.github.io/${encodeURIComponent(s.repo)}`;
     const isSelf=(s.repo==='deploy-panel');
+    const id=ea(s.id),repo=ea(s.repo),owner=ea(s.owner),name=ea(s.name);
     return`<div class="site-card">
       <div class="site-card-top">
         <div>
-          <div class="site-name">${s.name}</div>
-          <div class="site-repo">${s.owner}/${s.repo}</div>
-          <a class="site-link" href="${url}" target="_blank">🌐 פתח אתר</a>
+          <div class="site-name">${_esc(s.name)}</div>
+          <div class="site-repo">${_esc(s.owner)}/${_esc(s.repo)}</div>
+          <a class="site-link" href="${_esc(url)}" target="_blank" rel="noopener noreferrer">🌐 פתח אתר</a>
         </div>
         <div class="card-actions">
-          <button class="edit-btn" onclick="moveSite('${s.id}',-1)" style="padding:6px 8px">▲</button>
-          <button class="edit-btn" onclick="moveSite('${s.id}',1)" style="padding:6px 8px">▼</button>
-          <button class="copy-btn" id="copy-${s.id}" onclick="copyLink('${s.id}','${url}')">🔗</button>
-          <button class="edit-btn" onclick="openEditor('${s.repo}','${s.owner}','${s.name}')">✏️</button>
-          <button class="del-btn" onclick="confirmDelete('${s.id}','${s.name}')">🗑</button>
+          <button class="edit-btn" onclick="moveSite('${id}',-1)" style="padding:6px 8px">▲</button>
+          <button class="edit-btn" onclick="moveSite('${id}',1)" style="padding:6px 8px">▼</button>
+          <button class="copy-btn" id="copy-${id}" onclick="copyLink('${id}','${ea(url)}')">🔗</button>
+          <button class="edit-btn" onclick="openEditor('${repo}','${owner}','${name}')">✏️</button>
+          <button class="del-btn" onclick="confirmDelete('${id}','${name}')">🗑</button>
         </div>
       </div>
-      <input type="file" accept=".html" id="file-${s.id}" style="display:none" onchange="doUpload('${s.id}','${s.repo}','${s.owner}',this)">
-      <button class="deploy-btn" id="btn-${s.id}" onclick="document.getElementById('file-${s.id}').click()">🚀 בחר קובץ ופרסם</button>
-      ${isSelf?`<button class="self-btn" id="self-btn-${s.id}" onclick="deploySelf('${s.id}','${s.repo}','${s.owner}')">♻️ עדכן את הצינור עצמו (מהיר)</button>`:''}
-      <div class="prog" id="prog-${s.id}"><div class="prog-bar" id="progbar-${s.id}" style="width:0%"></div></div>
-      <div class="card-status" id="status-${s.id}"></div>
+      <input type="file" accept=".html" id="file-${id}" style="display:none" onchange="doUpload('${id}','${repo}','${owner}',this)">
+      <button class="deploy-btn" id="btn-${id}" onclick="document.getElementById('file-${id}').click()">🚀 בחר קובץ ופרסם</button>
+      ${isSelf?`<button class="self-btn" id="self-btn-${id}" onclick="deploySelf('${id}','${repo}','${owner}')">♻️ עדכן את הצינור עצמו (מהיר)</button>`:''}
+      <div class="prog" id="prog-${id}"><div class="prog-bar" id="progbar-${id}" style="width:0%"></div></div>
+      <div class="card-status" id="status-${id}"></div>
     </div>`;
   }).join('');
 }
@@ -1183,7 +1228,7 @@ async function deploySelf(id,repo,owner){
     if(!d.content)throw new Error(d.message||'שגיאה בהעלאה');
     pb.style.width='100%';
     btn.textContent='✅ עלה! מרענן...';btn.style.background='#059669';
-    st.innerHTML=`✅ <a href="https://${owner}.github.io/${repo}" target="_blank" style="color:#5eead4;text-decoration:underline;font-weight:700">פתח אתר עכשיו ←</a>`;
+    st.innerHTML=`✅ <a href="https://${encodeURIComponent(owner)}.github.io/${encodeURIComponent(repo)}" target="_blank" rel="noopener noreferrer" style="color:#5eead4;text-decoration:underline;font-weight:700">פתח אתר עכשיו ←</a>`;
     toast('✅ הצינור עודכן בהצלחה!');
     setTimeout(()=>location.reload(),4000);
   }catch(e){
@@ -1220,7 +1265,7 @@ async function doUpload(id,repo,owner,input){
     await enablePages(owner,repo,token);
     pb.style.width='100%';
     btn.textContent='✅ עלה!';btn.style.background='#059669';
-    st.innerHTML=`✅ <a href="https://${owner}.github.io/${repo}" target="_blank" style="color:#5eead4;text-decoration:underline;font-weight:700">פתח אתר עכשיו ←</a>`;
+    st.innerHTML=`✅ <a href="https://${encodeURIComponent(owner)}.github.io/${encodeURIComponent(repo)}" target="_blank" rel="noopener noreferrer" style="color:#5eead4;text-decoration:underline;font-weight:700">פתח אתר עכשיו ←</a>`;
     toast('✅ '+repo+' עלה בהצלחה!');
     // אם עדכנו את הצינור עצמו — נרענן אחרי 4 שניות
     if(repo==='deploy-panel'){
@@ -1403,7 +1448,7 @@ async function saveEdit(){
   session.start();
   const accBtn=document.createElement('button');
   accBtn.className='account-btn';
-  accBtn.innerHTML='👤 '+(auth.user.email||'')+' • התנתק';
+  accBtn.innerHTML='👤 '+_esc(auth.user.email||'')+' • התנתק';
   accBtn.onclick=()=>openMyAccount();
   document.body.appendChild(accBtn);
   showTokenStatus();
