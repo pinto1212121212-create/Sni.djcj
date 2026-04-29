@@ -510,6 +510,7 @@ const auth={
       body:JSON.stringify({idToken:token})
     });
     if(!r.ok){const err=await r.json();throw new Error(this._errMsg(err));}
+    try{biometric.remove();}catch(e){}
     this.signOut();
   },
 
@@ -538,6 +539,76 @@ const auth={
     };
     for(const k in map)if(m.indexOf(k)===0)return map[k];
     return m||'שגיאה';
+  }
+};
+
+// ── כניסה בטביעת אצבע (WebAuthn) ──
+const biometric={
+  CRED_KEY:'fp_credential_id',
+  USER_KEY:'fp_user_creds',
+  _supportCache:null,
+
+  async isSupported(){
+    if(this._supportCache!==null)return this._supportCache;
+    try{
+      if(!window.PublicKeyCredential)return this._supportCache=false;
+      if(!navigator.credentials||!navigator.credentials.create||!navigator.credentials.get)return this._supportCache=false;
+      const ok=await PublicKeyCredential.isUserVerifyingPlatformAuthenticatorAvailable();
+      return this._supportCache=!!ok;
+    }catch(e){return this._supportCache=false;}
+  },
+
+  isEnrolled(){
+    return !!localStorage.getItem(this.CRED_KEY);
+  },
+
+  async enroll(email,refreshToken){
+    if(!(await this.isSupported()))throw new Error('המכשיר הזה לא תומך בטביעת אצבע');
+    const challenge=crypto.getRandomValues(new Uint8Array(32));
+    const userIdBytes=new TextEncoder().encode(email).slice(0,64);
+    const cred=await navigator.credentials.create({
+      publicKey:{
+        challenge,
+        rp:{name:'לוח פרסום',id:location.hostname},
+        user:{id:userIdBytes,name:email,displayName:email},
+        pubKeyCredParams:[{type:'public-key',alg:-7},{type:'public-key',alg:-257}],
+        authenticatorSelection:{
+          authenticatorAttachment:'platform',
+          userVerification:'required',
+          residentKey:'preferred'
+        },
+        timeout:60000,
+        attestation:'none'
+      }
+    });
+    if(!cred||!cred.rawId)throw new Error('הרישום נכשל');
+    const credId=btoa(String.fromCharCode(...new Uint8Array(cred.rawId)));
+    localStorage.setItem(this.CRED_KEY,credId);
+    await secureStorage.setItem(this.USER_KEY,{email,refresh:refreshToken});
+  },
+
+  async authenticate(){
+    const credId=localStorage.getItem(this.CRED_KEY);
+    if(!credId)throw new Error('אין רישום של טביעת אצבע במכשיר');
+    const challenge=crypto.getRandomValues(new Uint8Array(32));
+    const rawId=Uint8Array.from(atob(credId),c=>c.charCodeAt(0));
+    const assertion=await navigator.credentials.get({
+      publicKey:{
+        challenge,
+        allowCredentials:[{type:'public-key',id:rawId,transports:['internal']}],
+        userVerification:'required',
+        timeout:60000
+      }
+    });
+    if(!assertion)throw new Error('האימות נכשל');
+    const creds=await secureStorage.getItem(this.USER_KEY);
+    if(!creds||!creds.refresh)throw new Error('פרטי החשבון לא נמצאו — התחבר עם סיסמה');
+    return creds;
+  },
+
+  remove(){
+    localStorage.removeItem(this.CRED_KEY);
+    localStorage.removeItem(this.USER_KEY);
   }
 };
 
@@ -590,10 +661,12 @@ function renderLogin(mode){
       <div class="login-switch"><a onclick="switchLogin('signin')">← חזרה לכניסה</a></div>
     </div>`;
   }
+  const fpEnrolled=biometric.isEnrolled();
   return `<div class="login-box">
     <div class="login-title">🚀 לוח פרסום</div>
     <div class="login-sub">התחבר כדי להיכנס</div>
     <div id="login-msg"></div>
+    ${fpEnrolled?`<button class="login-btn" style="background:linear-gradient(135deg,#7c3aed,#5b21b6);margin-bottom:14px" onclick="doBiometricLogin()">🖐️ כניסה בטביעת אצבע</button><div style="text-align:center;color:rgba(255,255,255,0.45);font-size:12px;margin-bottom:10px">— או התחבר עם סיסמה —</div>`:''}
     <div class="login-field"><label>Email</label><input id="lg-email" type="email" autocomplete="email" onkeydown="if(event.key==='Enter')document.getElementById('lg-pass').focus()"></div>
     <div class="login-field"><label>סיסמה</label><input id="lg-pass" type="password" autocomplete="current-password" onkeydown="if(event.key==='Enter')doLogin()"></div>
     <button class="login-btn" onclick="doLogin()">🔓 כניסה</button>
@@ -788,9 +861,103 @@ async function doLogin(){
   if(!email||!pass){_lgMsg('מלא את כל השדות');return;}
   _lgMsg('⏳ מתחבר...','ok');
   try{
-    await auth.signIn(email,pass);
+    const fresh=await auth.signIn(email,pass);
+    if(!biometric.isEnrolled() && await biometric.isSupported()){
+      _showBiometricEnrollPrompt(fresh.email,fresh.refresh);
+      return;
+    }
     location.reload();
   }catch(e){_lgMsg(e.message||'שגיאה');}
+}
+
+async function doBiometricLogin(){
+  _lgMsg('⏳ מאמת טביעת אצבע...','ok');
+  let creds=null;
+  try{
+    creds=await biometric.authenticate();
+  }catch(e){
+    if(e.name==='NotAllowedError')_lgMsg('❌ האימות בוטל או נכשל');
+    else _lgMsg('❌ '+(e.message||'שגיאה באימות'));
+    return;
+  }
+  try{
+    _lgMsg('⏳ מתחבר...','ok');
+    const r=await fetch('https://securetoken.googleapis.com/v1/token?key='+FB_API_KEY,{
+      method:'POST',
+      headers:{'Content-Type':'application/x-www-form-urlencoded'},
+      body:'grant_type=refresh_token&refresh_token='+encodeURIComponent(creds.refresh)
+    });
+    if(!r.ok){
+      _lgMsg('❌ פג תוקף הסשן השמור — התחבר עם סיסמה והפעל מחדש');
+      biometric.remove();
+      setTimeout(()=>switchLogin('signin'),2200);
+      return;
+    }
+    const d=await r.json();
+    const lookupR=await fetch('https://identitytoolkit.googleapis.com/v1/accounts:lookup?key='+FB_API_KEY,{
+      method:'POST',
+      headers:{'Content-Type':'application/json'},
+      body:JSON.stringify({idToken:d.id_token})
+    });
+    const lookupD=await lookupR.json();
+    const userInfo=(lookupD.users&&lookupD.users[0])||{};
+    if((userInfo.email||'').toLowerCase()!==ALLOWED_EMAIL){
+      biometric.remove();
+      _lgMsg('❌ אין לך הרשאה ללוח הפרסום');
+      return;
+    }
+    let name=userInfo.email||creds.email;
+    try{
+      const nr=await fetch(FB+'/users/'+userInfo.localId+'/name.json?auth='+encodeURIComponent(d.id_token));
+      if(nr.ok){const n=await nr.json();if(n)name=n;}
+    }catch(e){}
+    const fresh={
+      token:d.id_token,
+      refresh:d.refresh_token,
+      exp:Date.now()+(parseInt(d.expires_in)*1000),
+      uid:userInfo.localId,
+      email:userInfo.email||creds.email,
+      name:name
+    };
+    localStorage.setItem('fb_auth',JSON.stringify(fresh));
+    await secureStorage.setItem(biometric.USER_KEY,{email:fresh.email,refresh:fresh.refresh});
+    location.reload();
+  }catch(e){
+    _lgMsg('❌ '+(e.message||'שגיאה בהתחברות'));
+  }
+}
+
+function _showBiometricEnrollPrompt(email,refreshToken){
+  const screen=document.getElementById('login-screen');
+  if(!screen)return;
+  const esc=s=>s.replace(/\\/g,'\\\\').replace(/'/g,"\\'");
+  const e2=esc(email);
+  const r2=esc(refreshToken);
+  screen.innerHTML=`<div class="login-box">
+    <div style="font-size:56px;text-align:center;margin-bottom:8px">🖐️</div>
+    <div class="login-title">כניסה מהירה?</div>
+    <div class="login-sub">להפעיל כניסה בטביעת אצבע במכשיר הזה?<br><span style="font-size:12px;opacity:0.75">בפעם הבאה תיכנס בלחיצה אחת — בלי להקליד סיסמה.</span></div>
+    <div id="login-msg"></div>
+    <div style="background:rgba(94,234,212,0.08);border:1px solid rgba(94,234,212,0.25);border-radius:10px;padding:12px;margin-bottom:16px;font-size:12px;color:rgba(255,255,255,0.7);line-height:1.6">
+      🔒 טביעת האצבע נשמרת רק במכשיר הזה ולא נשלחת לשום מקום.
+    </div>
+    <button class="login-btn" onclick="_doEnableBiometric('${e2}','${r2}')">✅ הפעל כניסה בטביעת אצבע</button>
+    <div style="margin-top:10px"></div>
+    <button class="login-btn" style="background:linear-gradient(135deg,#475569,#334155)" onclick="location.reload()">לא עכשיו</button>
+  </div>`;
+}
+
+async function _doEnableBiometric(email,refreshToken){
+  _lgMsg('⏳ מבקש אישור מהמכשיר...','ok');
+  try{
+    await biometric.enroll(email,refreshToken);
+    _lgMsg('✅ הכניסה בטביעת אצבע הופעלה בהצלחה','ok');
+    setTimeout(()=>location.reload(),1200);
+  }catch(e){
+    if(e.name==='NotAllowedError')_lgMsg('❌ הרישום בוטל. אפשר להפעיל מאוחר יותר מ"החשבון שלי".');
+    else _lgMsg('❌ '+(e.message||'הרישום נכשל')+'<br><small style="opacity:0.7">אפשר לנסות שוב מ"החשבון שלי"</small>');
+    setTimeout(()=>location.reload(),2800);
+  }
 }
 
 async function doSignup(){
@@ -834,12 +1001,59 @@ async function openMyAccount(){
     <div class="login-field"><label>🔒 אימות סיסמה חדשה</label><input id="ma-pass2" type="password" placeholder="הקלד שוב לאימות"></div>
     <button class="login-btn" onclick="doChangePassword()">שמור סיסמה חדשה</button>
     <div style="margin-top:20px;padding-top:20px;border-top:1px solid rgba(94,234,212,0.15)"></div>
+    <button class="login-btn" id="ma-bio-btn" style="display:none" onclick="toggleBiometric()">🖐️ הפעל כניסה בטביעת אצבע</button>
+    <div id="ma-bio-spacer" style="display:none;margin-top:14px"></div>
     <button class="login-btn" style="background:linear-gradient(135deg,#64748b,#475569);color:#fff" onclick="auth.signOut()">🚪 התנתק</button>
     <div style="margin-top:14px"></div>
     <button class="login-btn" style="background:linear-gradient(135deg,#dc2626,#991b1b);color:#fff" onclick="doDeleteAccount()">🗑️ מחק את החשבון שלי</button>
     <div class="login-switch" style="margin-top:16px"><a onclick="closeMyAccount()">← חזרה ללוח</a></div>
   </div>`;
   document.body.appendChild(box);
+  _refreshBiometricBtn();
+}
+
+async function _refreshBiometricBtn(){
+  const btn=document.getElementById('ma-bio-btn');
+  const sp=document.getElementById('ma-bio-spacer');
+  if(!btn||!sp)return;
+  if(!(await biometric.isSupported())){
+    btn.style.display='none';
+    sp.style.display='none';
+    return;
+  }
+  btn.style.display='block';
+  sp.style.display='block';
+  if(biometric.isEnrolled()){
+    btn.innerHTML='🚫 בטל כניסה בטביעת אצבע';
+    btn.style.background='linear-gradient(135deg,#475569,#334155)';
+  }else{
+    btn.innerHTML='🖐️ הפעל כניסה בטביעת אצבע';
+    btn.style.background='linear-gradient(135deg,#7c3aed,#5b21b6)';
+  }
+}
+
+async function toggleBiometric(){
+  if(biometric.isEnrolled()){
+    if(!confirm('בטוח שברצונך לבטל את הכניסה בטביעת אצבע?'))return;
+    biometric.remove();
+    _lgMsg('✅ הכניסה בטביעת אצבע בוטלה','ok');
+    _refreshBiometricBtn();
+    return;
+  }
+  _lgMsg('⏳ מבקש אישור מהמכשיר...','ok');
+  try{
+    const fbAuth=JSON.parse(localStorage.getItem('fb_auth')||'{}');
+    if(!fbAuth.refresh||!fbAuth.email){
+      _lgMsg('❌ נדרשת התחברות מחדש לפני הפעלת טביעת אצבע');
+      return;
+    }
+    await biometric.enroll(fbAuth.email,fbAuth.refresh);
+    _lgMsg('✅ הכניסה בטביעת אצבע הופעלה','ok');
+    _refreshBiometricBtn();
+  }catch(e){
+    if(e.name==='NotAllowedError')_lgMsg('❌ הרישום בוטל');
+    else _lgMsg('❌ '+(e.message||'הרישום נכשל'));
+  }
 }
 
 function closeMyAccount(){
