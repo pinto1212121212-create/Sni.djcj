@@ -138,7 +138,6 @@ h1{text-align:center;font-size:22px;margin-bottom:4px;color:#5eead4}
 // ── Firebase Auth — Email/Password ─────────
 const FB='https://deploy-panel-fa3d7-default-rtdb.europe-west1.firebasedatabase.app';
 const FB_API_KEY='AIzaSyBmSX58KcaeGN8y5A_oHds28-6K1Ka-pn0';
-const INVITE_CODE='PINTO5997@';
 const ALLOWED_EMAIL='pinto1212121212@gmail.com';
 
 // ── שכבה 8: הצפנת localStorage עם AES-GCM ──
@@ -400,11 +399,10 @@ const auth={
     return fresh;
   },
 
-  async signUp(email,password,name,inviteCode){
+  async signUp(email,password,name){
     rateLimit.check();
     email=(email||'').trim().toLowerCase();
     if(email!==ALLOWED_EMAIL) throw new Error('אין לך הרשאה להירשם ללוח הפרסום');
-    if(inviteCode!==INVITE_CODE) throw new Error('קוד הזמנה לא נכון');
     if(!name||name.trim().length<2) throw new Error('חובה למלא שם');
     const pwCheck=passwordPolicy.check(password);
     if(!pwCheck.ok) throw new Error(pwCheck.msg);
@@ -643,7 +641,6 @@ function renderLogin(mode){
       <div class="login-field"><label>Email</label><input id="lg-email" type="email" autocomplete="email"></div>
       <div class="login-field"><label>סיסמה (לפחות 8 תווים, אותיות ומספרים)</label><input id="lg-pass" type="password" autocomplete="new-password" oninput="updatePwStrength()"><div id="pw-strength" style="height:4px;border-radius:2px;background:rgba(255,255,255,0.1);margin-top:6px;overflow:hidden"><div id="pw-bar" style="height:100%;width:0;background:#ef4444;transition:width .3s,background .3s"></div></div><div id="pw-hint" style="font-size:11px;color:rgba(255,255,255,0.5);margin-top:4px"></div></div>
       <div class="login-field"><label>🔒 אימות סיסמה</label><input id="lg-pass2" type="password" autocomplete="new-password" placeholder="הקלד את הסיסמה שוב"></div>
-      <div class="login-field"><label>🎟️ קוד הזמנה</label><input id="lg-code" type="text" autocomplete="off"></div>
       <button class="login-btn" onclick="doSignup()">🚀 הירשם</button>
       <div class="login-switch">כבר רשום? <a onclick="switchLogin('signin')">התחבר</a></div>
     </div>`;
@@ -965,13 +962,12 @@ async function doSignup(){
   const email=document.getElementById('lg-email').value.trim();
   const pass=document.getElementById('lg-pass').value;
   const pass2=document.getElementById('lg-pass2').value;
-  const code=document.getElementById('lg-code').value.trim();
-  if(!name||!email||!pass||!pass2||!code){_lgMsg('מלא את כל השדות');return;}
+  if(!name||!email||!pass||!pass2){_lgMsg('מלא את כל השדות');return;}
   if(pass.length<6){_lgMsg('הסיסמה חייבת להיות לפחות 6 תווים');return;}
   if(pass!==pass2){_lgMsg('הסיסמאות לא תואמות — בדוק שוב');return;}
   _lgMsg('⏳ רושם...','ok');
   try{
-    await auth.signUp(email,pass,name,code);
+    await auth.signUp(email,pass,name);
     location.reload();
   }catch(e){_lgMsg(e.message||'שגיאה');}
 }
