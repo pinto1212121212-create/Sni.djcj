@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
-<meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline'; img-src 'self' data:; font-src 'self' data:; connect-src 'self' https://identitytoolkit.googleapis.com https://securetoken.googleapis.com https://api.github.com https://deploy-panel-fa3d7-default-rtdb.europe-west1.firebasedatabase.app; form-action 'self'; base-uri 'self'; object-src 'none'; upgrade-insecure-requests">
+<meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline'; img-src 'self' data:; font-src 'self' data:; connect-src 'self' https://identitytoolkit.googleapis.com https://securetoken.googleapis.com https://api.github.com https://raw.githubusercontent.com https://deploy-panel-fa3d7-default-rtdb.europe-west1.firebasedatabase.app; form-action 'self'; base-uri 'self'; object-src 'none'; upgrade-insecure-requests">
 <meta name="referrer" content="strict-origin-when-cross-origin">
 <meta http-equiv="X-Content-Type-Options" content="nosniff">
 <meta name="robots" content="noindex,nofollow,noarchive,nosnippet">
@@ -1393,12 +1393,32 @@ async function openEditor(repo,owner,name){
   document.getElementById('edit-overlay').classList.remove('hidden');
   const st=document.getElementById('edit-status');st.textContent='⏳ טוען קובץ...';st.style.color='#5eead4';
   try{
-    const r=await fetch(`https://api.github.com/repos/${owner}/${repo}/contents/index.html`,
-      {headers:{'Authorization':'token '+token,'Accept':'application/vnd.github.v3+json'}});
+    const cb=Date.now();
+    const apiHeaders={'Authorization':'token '+token,'Accept':'application/vnd.github.v3+json','Cache-Control':'no-cache'};
+    const r=await fetch(`https://api.github.com/repos/${owner}/${repo}/contents/index.html?t=${cb}`,{headers:apiHeaders,cache:'no-store'});
     const d=await r.json();
-    if(!d.content)throw new Error(d.message||'קובץ לא נמצא');
-    editCtx={repo,owner,sha:d.sha};
-    document.getElementById('edit-textarea').value=decodeURIComponent(escape(atob(d.content.replace(/\n/g,''))));
+    let sha='',content='';
+    if(r.ok && d.content){
+      sha=d.sha;
+      content=decodeURIComponent(escape(atob(d.content.replace(/\n/g,''))));
+    }else{
+      const repoResp=await fetch(`https://api.github.com/repos/${owner}/${repo}?t=${cb}`,{headers:apiHeaders,cache:'no-store'});
+      const repoData=await repoResp.json();
+      if(!repoResp.ok)throw new Error(repoData.message||'שגיאה בגישה למאגר');
+      const branch=repoData.default_branch||'main';
+      const treeResp=await fetch(`https://api.github.com/repos/${owner}/${repo}/git/trees/${encodeURIComponent(branch)}?t=${cb}`,{headers:apiHeaders,cache:'no-store'});
+      const treeData=await treeResp.json();
+      if(!treeResp.ok)throw new Error(treeData.message||'שגיאה בקריאת עץ הקבצים');
+      const file=(treeData.tree||[]).find(t=>t.path==='index.html');
+      if(!file)throw new Error('קובץ לא נמצא');
+      sha=file.sha;
+      st.textContent='⏳ טוען קובץ גדול...';
+      const rawResp=await fetch(`https://raw.githubusercontent.com/${owner}/${repo}/${encodeURIComponent(branch)}/index.html?t=${cb}`,{cache:'no-store',headers:{'Cache-Control':'no-cache'}});
+      if(!rawResp.ok)throw new Error('שגיאה בטעינת קובץ גדול');
+      content=await rawResp.text();
+    }
+    editCtx={repo,owner,sha};
+    document.getElementById('edit-textarea').value=content;
     st.textContent='';
   }catch(e){st.textContent='❌ '+e.message;st.style.color='#f87171';}
 }
