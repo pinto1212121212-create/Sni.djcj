@@ -1049,6 +1049,9 @@ async function openMyAccount(){
     <div class="login-field"><label>🔒 אימות סיסמה חדשה</label><input id="ma-pass2" type="password" placeholder="הקלד שוב לאימות"></div>
     <button class="login-btn" onclick="doChangePassword()">שמור סיסמה חדשה</button>
     <div style="margin-top:20px;padding-top:20px;border-top:1px solid rgba(94,234,212,0.15)"></div>
+    <button class="login-btn" style="background:linear-gradient(135deg,#0d9488,#5eead4);color:#04201c" onclick="downloadFullBackup()">💾 הורד גיבוי מלא</button>
+    <div style="font-size:11px;color:rgba(255,255,255,0.5);margin-top:6px;text-align:center">מוריד את כל הפאנל (הקובץ המלא) + רשימת האתרים שלך</div>
+    <div style="margin-top:14px"></div>
     <button class="login-btn" id="ma-bio-btn" style="display:none" onclick="toggleBiometric()">🖐️ הפעל כניסה בטביעת אצבע</button>
     <div id="ma-bio-spacer" style="display:none;margin-top:14px"></div>
     <button class="login-btn" style="background:linear-gradient(135deg,#64748b,#475569);color:#fff" onclick="auth.signOut()">🚪 התנתק</button>
@@ -1132,6 +1135,35 @@ async function doDeleteAccount(){
   try{
     await auth.deleteAccount();
   }catch(e){alert('שגיאה: '+(e.message||''));}
+}
+
+// ===== גיבוי מלא: הורדת כל הפאנל (הקובץ המלא) + נתוני האתרים =====
+function _downloadBlob(filename,content,type){
+  const blob=new Blob([content],{type:type||'application/octet-stream'});
+  const url=URL.createObjectURL(blob);
+  const a=document.createElement('a');
+  a.href=url;a.download=filename;
+  document.body.appendChild(a);a.click();a.remove();
+  setTimeout(()=>URL.revokeObjectURL(url),2000);
+}
+function downloadFullBackup(){
+  try{
+    const stamp=new Date().toISOString().slice(0,19).replace(/[:T]/g,'-');
+    // 1) הקובץ הענק המלא — כל הפאנל כפי שהוא רץ עכשיו
+    const html='<!DOCTYPE html>\n'+document.documentElement.outerHTML;
+    _downloadBlob('panel-backup-'+stamp+'.html',html,'text/html;charset=utf-8');
+    // 2) נתוני האתרים שלך (רשימה + מחיקות) כ-JSON
+    const data={
+      exportedAt:new Date().toISOString(),
+      user:(auth.user&&auth.user.email)||'',
+      sites:getSites(),
+      deletedIds:getDeletedIds()
+    };
+    setTimeout(()=>_downloadBlob('panel-data-'+stamp+'.json',JSON.stringify(data,null,2),'application/json'),400);
+    toast('💾 גיבוי הורד — קובץ פאנל + נתונים');
+  }catch(e){
+    toast('❌ שגיאה בגיבוי: '+(e.message||''),true);
+  }
 }
 
 
