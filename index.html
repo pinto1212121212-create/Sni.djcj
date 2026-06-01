@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
-<meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline'; img-src 'self' data:; font-src 'self' data:; connect-src 'self' https://identitytoolkit.googleapis.com https://securetoken.googleapis.com https://api.github.com https://raw.githubusercontent.com https://deploy-panel-fa3d7-default-rtdb.europe-west1.firebasedatabase.app; form-action 'self'; base-uri 'self'; object-src 'none'; upgrade-insecure-requests">
+<meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline'; img-src 'self' data:; font-src 'self' data:; connect-src 'self' https://identitytoolkit.googleapis.com https://securetoken.googleapis.com https://api.github.com https://codeload.github.com https://raw.githubusercontent.com https://deploy-panel-fa3d7-default-rtdb.europe-west1.firebasedatabase.app; form-action 'self'; base-uri 'self'; object-src 'none'; upgrade-insecure-requests">
 <meta name="referrer" content="strict-origin-when-cross-origin">
 <meta http-equiv="X-Content-Type-Options" content="nosniff">
 <meta name="robots" content="noindex,nofollow,noarchive,nosnippet">
@@ -1138,13 +1138,32 @@ async function doDeleteAccount(){
 }
 
 // ===== גיבוי מלא: הורדת כל הפאנל (הקובץ המלא) + נתוני האתרים =====
-function _downloadBlob(filename,content,type){
-  const blob=new Blob([content],{type:type||'application/octet-stream'});
+function _saveBlob(filename,blob){
   const url=URL.createObjectURL(blob);
   const a=document.createElement('a');
   a.href=url;a.download=filename;
   document.body.appendChild(a);a.click();a.remove();
   setTimeout(()=>URL.revokeObjectURL(url),2000);
+}
+function _downloadBlob(filename,content,type){
+  _saveBlob(filename,new Blob([content],{type:type||'application/octet-stream'}));
+}
+// גיבוי מלא של repo בודד — כל הקבצים כ-ZIP (לשחזור מלא אם הכל נמחק)
+async function backupRepo(repo,owner){
+  const token=getToken();
+  if(!token){toast('⚠️ נא להכניס Token קודם',true);return;}
+  toast('💾 מכין גיבוי מלא של '+repo+'...');
+  try{
+    const r=await fetch(`https://api.github.com/repos/${encodeURIComponent(owner)}/${encodeURIComponent(repo)}/zipball`,
+      {headers:{'Authorization':'token '+token,'Accept':'application/vnd.github.v3+json'}});
+    if(!r.ok)throw new Error(r.status===404?'ה-repo לא נמצא':('שגיאה '+r.status));
+    const blob=await r.blob();
+    const stamp=new Date().toISOString().slice(0,19).replace(/[:T]/g,'-');
+    _saveBlob(repo+'-FULL-'+stamp+'.zip',blob);
+    toast('✅ '+repo+' גובה במלואו ('+Math.round(blob.size/1024)+'KB)');
+  }catch(e){
+    toast('❌ גיבוי '+repo+' נכשל: '+(e.message||''),true);
+  }
 }
 async function downloadFullBackup(){
   try{
@@ -1314,6 +1333,7 @@ function renderSites(){
           <button class="edit-btn" onclick="moveSite('${id}',-1)" style="padding:6px 8px">▲</button>
           <button class="edit-btn" onclick="moveSite('${id}',1)" style="padding:6px 8px">▼</button>
           <button class="copy-btn" id="copy-${id}" onclick="copyLink('${id}','${ea(url)}')">🔗</button>
+          <button class="edit-btn" onclick="backupRepo('${repo}','${owner}')" title="גבה את כל הקבצים (ZIP)">💾</button>
           <button class="edit-btn" onclick="openEditor('${repo}','${owner}','${name}')">✏️</button>
           <button class="del-btn" onclick="confirmDelete('${id}','${name}')">🗑</button>
         </div>
