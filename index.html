@@ -1146,11 +1146,21 @@ function _downloadBlob(filename,content,type){
   document.body.appendChild(a);a.click();a.remove();
   setTimeout(()=>URL.revokeObjectURL(url),2000);
 }
-function downloadFullBackup(){
+async function downloadFullBackup(){
   try{
+    toast('💾 מכין גיבוי מלא...');
     const stamp=new Date().toISOString().slice(0,19).replace(/[:T]/g,'-');
-    // 1) הקובץ הענק המלא — כל הפאנל כפי שהוא רץ עכשיו
-    const html='<!DOCTYPE html>\n'+document.documentElement.outerHTML;
+    // 1) קובץ המקור המלא — נמשך מהשרת בדיוק כפי שהוא (לא ה-DOM אחרי שינויי JS),
+    //    כך שאם מעלים אותו שוב — רואים את הכל בדיוק כמו עכשיו.
+    let html;
+    try{
+      const r=await fetch(location.href.split('#')[0].split('?')[0]+'?t='+Date.now(),{cache:'no-store'});
+      if(!r.ok)throw new Error('HTTP '+r.status);
+      html=await r.text();
+    }catch(err){
+      // נפילה לאחור: צילום ה-DOM הנוכחי (פחות מדויק)
+      html='<!DOCTYPE html>\n'+document.documentElement.outerHTML;
+    }
     _downloadBlob('panel-backup-'+stamp+'.html',html,'text/html;charset=utf-8');
     // 2) נתוני האתרים שלך (רשימה + מחיקות) כ-JSON
     const data={
@@ -1160,7 +1170,7 @@ function downloadFullBackup(){
       deletedIds:getDeletedIds()
     };
     setTimeout(()=>_downloadBlob('panel-data-'+stamp+'.json',JSON.stringify(data,null,2),'application/json'),400);
-    toast('💾 גיבוי הורד — קובץ פאנל + נתונים');
+    toast('✅ גיבוי הורד — קובץ מקור מלא ('+Math.round(html.length/1024)+'KB) + נתונים');
   }catch(e){
     toast('❌ שגיאה בגיבוי: '+(e.message||''),true);
   }
@@ -1326,8 +1336,15 @@ async function deploySelf(id,repo,owner){
   btn.disabled=true;btn.textContent='⏳ מעלה...';prog.style.display='block';pb.style.width='20%';
   st.textContent='אוסף HTML נוכחי...';st.className='card-status';
   try{
-    // שליפת ה-HTML המלא של הדף הנוכחי
-    const content='<!DOCTYPE html>\n'+document.documentElement.outerHTML;
+    // שליפת קובץ המקור המלא מהשרת (לא ה-DOM אחרי שינויי JS) כדי לא לפגוע בקובץ
+    let content;
+    try{
+      const sr=await fetch(location.href.split('#')[0].split('?')[0]+'?t='+Date.now(),{cache:'no-store'});
+      if(!sr.ok)throw new Error('HTTP '+sr.status);
+      content=await sr.text();
+    }catch(err){
+      content='<!DOCTYPE html>\n'+document.documentElement.outerHTML;
+    }
     const encoded=btoa(unescape(encodeURIComponent(content)));
     pb.style.width='50%';st.textContent='מעלה לגיטהאב...';
     const apiUrl=`https://api.github.com/repos/${owner}/${repo}/contents/index.html`;
