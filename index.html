@@ -1293,7 +1293,7 @@ async function deploySelf(id,repo,owner){
     const encoded=btoa(unescape(encodeURIComponent(content)));
     pb.style.width='50%';st.textContent='מעלה לגיטהאב...';
     const apiUrl=`https://api.github.com/repos/${owner}/${repo}/contents/index.html`;
-    const chk=await (await fetch(apiUrl+`?t=${Date.now()}`,{headers:{'Authorization':'token '+token,'Accept':'application/vnd.github.v3+json','Cache-Control':'no-cache'}})).json();
+    const chk=await (await fetch(apiUrl+`?t=${Date.now()}`,{headers:{'Authorization':'token '+token,'Accept':'application/vnd.github.v3+json'}})).json();
     const body={message:'Self-update via deploy panel',content:encoded};if(chk.sha)body.sha=chk.sha;
     pb.style.width='80%';
     const d=await (await fetch(apiUrl,{method:'PUT',headers:{'Authorization':'token '+token,'Accept':'application/vnd.github.v3+json','Content-Type':'application/json'},body:JSON.stringify(body)})).json();
