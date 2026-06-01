@@ -93,6 +93,11 @@ h1{text-align:center;font-size:22px;margin-bottom:4px;color:#5eead4}
 <div class="sites-grid" id="sites-grid"></div>
 
 <button class="add-btn" onclick="toggleAddForm()">✨ הוסף אתר חדש — הכל אוטומטי</button>
+<button class="add-btn" onclick="importFromGitHub()" style="margin-top:8px">🔍 ייבא אתרים מ-GitHub</button>
+<div class="add-form" id="import-box" style="display:none">
+  <div style="font-size:13px;color:#5eead4;margin-bottom:10px;text-align:center">אתרים עם Pages שאינם בפאנל — הוסף בלחיצה</div>
+  <div id="import-list"></div>
+</div>
 
 <div class="add-form" id="add-form">
   <div style="font-size:12px;color:#5eead4;margin-bottom:12px;text-align:center">ריפו נוצר + Pages מופעל אוטומטית 🎉</div>
@@ -1131,7 +1136,7 @@ async function doDeleteAccount(){
 
 
 const DEFAULT_SITES=[
-  {id:'panel',    name:'🚀 לוח פרסום',                 repo:'deploy-panel',   owner:'pinto1212121212-create'},
+  {id:'panel',    name:'🚀 לוח פרסום',                 repo:'Sni.djcj',       owner:'pinto1212121212-create'},
   {id:'hodaya',   name:'💙 היומן שלי — הודיה',         repo:'therapy-hodaya', owner:'pinto1212121212-create'},
   {id:'rinat',    name:'📖 היומן שלנו — רינת ודניאל',  repo:'diary-rinat',    owner:'pinto1212121212-create'},
   {id:'laser',    name:'💎 RB Pro Laser',               repo:'rb-prolaser',    owner:'pinto1212121212-create'},
@@ -1161,13 +1166,14 @@ function getSites(){
       return initial;
     }
     let stored=(JSON.parse(s)||[]).filter(x=>!deleted.includes(x.id));
+    let changed=false;
+    // תיקון כרטיס הפאנל הישן שהצביע ל-repo לא קיים (deploy-panel)
+    stored.forEach(x=>{if(x.id==='panel'&&x.repo==='deploy-panel'){x.repo='Sni.djcj';changed=true;}});
     // מיזוג ברירות מחדל חדשות שעדיין לא קיימות (ולא נמחקו ידנית)
     const have=new Set(stored.map(x=>x.id));
     const missing=DEFAULT_SITES.filter(x=>!have.has(x.id)&&!deleted.includes(x.id));
-    if(missing.length){
-      stored=stored.concat(missing);
-      localStorage.setItem('deploy_sites',JSON.stringify(stored));
-    }
+    if(missing.length){stored=stored.concat(missing);changed=true;}
+    if(changed)localStorage.setItem('deploy_sites',JSON.stringify(stored));
     return stored;
   }catch(e){return DEFAULT_SITES;}
 }
@@ -1253,7 +1259,7 @@ function renderSites(){
   const ea=s=>String(s==null?'':s).replace(/\\/g,'\\\\').replace(/'/g,"\\'").replace(/"/g,'&quot;');
   document.getElementById('sites-grid').innerHTML=getSites().map(s=>{
     const url=`https://${encodeURIComponent(s.owner)}.github.io/${encodeURIComponent(s.repo)}`;
-    const isSelf=(s.repo==='deploy-panel');
+    const isSelf=(s.id==='panel'||s.repo==='deploy-panel'||s.repo==='Sni.djcj');
     const id=ea(s.id),repo=ea(s.repo),owner=ea(s.owner),name=ea(s.name);
     return`<div class="site-card">
       <div class="site-card-top">
@@ -1340,7 +1346,7 @@ async function doUpload(id,repo,owner,input){
     st.innerHTML=`✅ <a href="https://${encodeURIComponent(owner)}.github.io/${encodeURIComponent(repo)}" target="_blank" rel="noopener noreferrer" style="color:#5eead4;text-decoration:underline;font-weight:700">פתח אתר עכשיו ←</a>`;
     toast('✅ '+repo+' עלה בהצלחה!');
     // אם עדכנו את הצינור עצמו — נרענן אחרי 4 שניות
-    if(repo==='deploy-panel'){
+    if(repo==='deploy-panel'||repo==='Sni.djcj'){
       st.textContent='מרענן...';
       setTimeout(()=>location.reload(),4000);
       return;
@@ -1398,6 +1404,63 @@ async function createAndDeploy(){
 }
 
 function toggleAddForm(){document.getElementById('add-form').classList.toggle('show');}
+
+// ===== ייבוא אתרים קיימים מ-GitHub (repos עם Pages שאינם בפאנל) =====
+async function importFromGitHub(){
+  const token=getToken();
+  if(!token){toast('⚠️ נא להכניס Token קודם',true);return;}
+  const box=document.getElementById('import-box');
+  const list=document.getElementById('import-list');
+  box.style.display='block';
+  list.innerHTML='<div style="text-align:center;color:#5eead4">⏳ טוען את ה-repos שלך...</div>';
+  try{
+    let repos=[],page=1;
+    while(page<=5){
+      const r=await fetch(`https://api.github.com/user/repos?per_page=100&page=${page}&sort=updated`,
+        {headers:{'Authorization':'token '+token,'Accept':'application/vnd.github.v3+json'}});
+      if(!r.ok)throw new Error(r.status===401?'Token לא תקין':('שגיאה '+r.status));
+      const batch=await r.json();
+      if(!Array.isArray(batch)||!batch.length)break;
+      repos=repos.concat(batch);
+      if(batch.length<100)break;
+      page++;
+    }
+    // repos שכבר נמצאים בפאנל (לפי שם ה-repo, חסר רישיות)
+    const have=new Set(getSites().map(s=>String(s.repo).toLowerCase()));
+    const missing=repos.filter(r=>r.has_pages && !have.has(String(r.name).toLowerCase()));
+    if(!missing.length){
+      list.innerHTML='<div style="text-align:center;color:#94a3b8">🎉 אין אתרים חסרים — הכל כבר בפאנל</div>';
+      return;
+    }
+    list.innerHTML=missing.map(r=>{
+      const repo=_esc(r.name),owner=_esc(r.owner&&r.owner.login||'');
+      const url=`https://${encodeURIComponent(r.owner&&r.owner.login||'')}.github.io/${encodeURIComponent(r.name)}`;
+      return`<div class="site-card" style="margin-bottom:8px">
+        <div class="site-card-top">
+          <div>
+            <div class="site-repo">${owner}/${repo}</div>
+            <a class="site-link" href="${_esc(url)}" target="_blank" rel="noopener noreferrer">🌐 פתח אתר</a>
+          </div>
+          <button class="copy-btn" onclick="addImported('${repo}','${owner}',this)">➕ הוסף</button>
+        </div>
+      </div>`;
+    }).join('');
+  }catch(e){
+    list.innerHTML='<div style="text-align:center;color:#f87171">❌ '+_esc(e.message)+'</div>';
+    toast('❌ '+e.message,true);
+  }
+}
+function addImported(repo,owner,btn){
+  const sites=getSites();
+  if(sites.some(s=>String(s.repo).toLowerCase()===String(repo).toLowerCase())){
+    toast('כבר קיים בפאנל');return;
+  }
+  sites.push({id:'site_'+Date.now(),name:repo,repo,owner});
+  saveSites(sites);
+  renderSites();
+  if(btn){btn.textContent='✅ נוסף';btn.disabled=true;btn.style.opacity='0.6';}
+  toast('✅ '+repo+' נוסף לפאנל');
+}
 
 // העתקת קישור של אתר ללוח — עם fallback לדפדפנים ישנים
 async function copyLink(id,url){
