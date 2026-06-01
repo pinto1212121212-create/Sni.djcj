@@ -558,6 +558,9 @@ const auth={
   signOut(){
     if(this.user)this._audit('logout');
     localStorage.removeItem('fb_auth');
+    // ניקוי ה-cache המקומי כדי שמשתמש אחר באותו דפדפן לא "יירש" אתרים
+    localStorage.removeItem('deploy_sites');
+    localStorage.removeItem('deleted_ids');
     this._cached=null;
     this.user=null;
     location.reload();
@@ -1138,6 +1141,15 @@ const DEFAULT_SITES=[
 function getDeletedIds(){
   try{return JSON.parse(localStorage.getItem('deleted_ids')||'[]');}catch(e){return [];}
 }
+function restoreDeleted(){
+  const deleted=getDeletedIds();
+  if(!deleted.length){toast('אין אתרים שנמחקו לשחזור');return;}
+  if(!confirm('לשחזר את כל האתרים שנמחקו (ברירות המחדל)?'))return;
+  localStorage.removeItem('deleted_ids');
+  scheduleCloudSync();
+  renderSites();showTokenStatus();
+  toast('♻️ האתרים שוחזרו');
+}
 function getSites(){
   try{
     const s=localStorage.getItem('deploy_sites');
@@ -1148,10 +1160,65 @@ function getSites(){
       localStorage.setItem('deploy_sites',JSON.stringify(initial));
       return initial;
     }
-    return (JSON.parse(s)||[]).filter(x=>!deleted.includes(x.id));
+    let stored=(JSON.parse(s)||[]).filter(x=>!deleted.includes(x.id));
+    // מיזוג ברירות מחדל חדשות שעדיין לא קיימות (ולא נמחקו ידנית)
+    const have=new Set(stored.map(x=>x.id));
+    const missing=DEFAULT_SITES.filter(x=>!have.has(x.id)&&!deleted.includes(x.id));
+    if(missing.length){
+      stored=stored.concat(missing);
+      localStorage.setItem('deploy_sites',JSON.stringify(stored));
+    }
+    return stored;
   }catch(e){return DEFAULT_SITES;}
 }
-function saveSites(s){localStorage.setItem('deploy_sites',JSON.stringify(s));}
+function saveSites(s){localStorage.setItem('deploy_sites',JSON.stringify(s));scheduleCloudSync();}
+
+// ===== סנכרון רשימת האתרים מול הענן (Realtime DB) =====
+// localStorage משמש כ-cache מהיר; הענן הוא מקור האמת ומסונכרן בין כל המכשירים.
+let _cloudLoaded=false,_cloudSyncTimer=null;
+async function _cloudUrl(){
+  if(!auth.user||!auth.user.uid)return null;
+  const token=await auth.getToken();
+  if(!token)return null;
+  return FB+'/users/'+auth.user.uid+'/panel.json?auth='+encodeURIComponent(token);
+}
+async function loadSitesFromCloud(){
+  _cloudLoaded=false;
+  try{
+    const url=await _cloudUrl();
+    if(!url)return;
+    const r=await fetch(url);
+    if(!r.ok)return;
+    const d=await r.json();
+    if(d&&Array.isArray(d.sites)){
+      // הענן מכיל נתונים — מקור האמת
+      localStorage.setItem('deploy_sites',JSON.stringify(d.sites));
+      localStorage.setItem('deleted_ids',JSON.stringify(Array.isArray(d.deletedIds)?d.deletedIds:[]));
+      _cloudLoaded=true;
+    }else{
+      // אין עדיין נתונים בענן — מעלים את המצב המקומי הקיים (מיגרציה ראשונית)
+      _cloudLoaded=true;
+      await pushSitesToCloud();
+    }
+  }catch(e){/* אופליין — נשארים עם ה-cache המקומי */}
+}
+async function pushSitesToCloud(){
+  try{
+    const url=await _cloudUrl();
+    if(!url)return;
+    const payload={
+      sites:JSON.parse(localStorage.getItem('deploy_sites')||'[]'),
+      deletedIds:getDeletedIds(),
+      updatedAt:Date.now()
+    };
+    await fetch(url,{method:'PUT',headers:{'Content-Type':'application/json'},body:JSON.stringify(payload)});
+  }catch(e){/* אופליין — יסונכרן בפעם הבאה */}
+}
+function scheduleCloudSync(){
+  if(!_cloudLoaded)return; // לא דורסים את הענן לפני שסיימנו לטעון ממנו
+  clearTimeout(_cloudSyncTimer);
+  _cloudSyncTimer=setTimeout(pushSitesToCloud,600);
+}
 function getToken(){return localStorage.getItem('gh_deploy_token')||'';}
 
 let _toastTimer;
@@ -1173,9 +1240,13 @@ function clearToken(){
 }
 function showTokenStatus(){
   const el=document.getElementById('token-status');
-  el.innerHTML=getToken()
+  let html=getToken()
     ?'<span style="color:#4ade80">✅ Token מחובר</span> &nbsp;·&nbsp; <span style="color:#475569;cursor:pointer;text-decoration:underline" onclick="clearToken()">נקה</span>'
     :'<span style="color:#f87171">⚠️ Token לא הוגדר</span>';
+  if(getDeletedIds().length){
+    html+=' &nbsp;·&nbsp; <span style="color:#5eead4;cursor:pointer;text-decoration:underline" onclick="restoreDeleted()">♻️ שחזר אתרים שנמחקו</span>';
+  }
+  el.innerHTML=html;
 }
 
 function renderSites(){
@@ -1374,7 +1445,7 @@ function doDelete(){
   if(!deleted.includes(_delId))deleted.push(_delId);
   localStorage.setItem('deleted_ids',JSON.stringify(deleted));
   saveSites(getSites().filter(s=>s.id!==_delId));
-  closeDelModal();renderSites();
+  closeDelModal();renderSites();showTokenStatus();
   toast('🗑 נמחק');
 }
 function downloadEdit(){
@@ -1473,7 +1544,11 @@ async function saveEdit(){
   accBtn.onclick=()=>openMyAccount();
   document.body.appendChild(accBtn);
   showTokenStatus();
+  await loadSitesFromCloud();
   renderSites();
+  showTokenStatus();
+  // getSites עשוי למזג אתרי ברירת מחדל חדשים — מסנכרנים כדי לשמר אותם בענן
+  scheduleCloudSync();
 })();
 </script>
 </body>
