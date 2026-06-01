@@ -558,6 +558,9 @@ const auth={
   signOut(){
     if(this.user)this._audit('logout');
     localStorage.removeItem('fb_auth');
+    // ניקוי ה-cache המקומי כדי שמשתמש אחר באותו דפדפן לא "יירש" אתרים
+    localStorage.removeItem('deploy_sites');
+    localStorage.removeItem('deleted_ids');
     this._cached=null;
     this.user=null;
     location.reload();
@@ -1143,6 +1146,7 @@ function restoreDeleted(){
   if(!deleted.length){toast('אין אתרים שנמחקו לשחזור');return;}
   if(!confirm('לשחזר את כל האתרים שנמחקו (ברירות המחדל)?'))return;
   localStorage.removeItem('deleted_ids');
+  scheduleCloudSync();
   renderSites();showTokenStatus();
   toast('♻️ האתרים שוחזרו');
 }
@@ -1167,7 +1171,54 @@ function getSites(){
     return stored;
   }catch(e){return DEFAULT_SITES;}
 }
-function saveSites(s){localStorage.setItem('deploy_sites',JSON.stringify(s));}
+function saveSites(s){localStorage.setItem('deploy_sites',JSON.stringify(s));scheduleCloudSync();}
+
+// ===== סנכרון רשימת האתרים מול הענן (Realtime DB) =====
+// localStorage משמש כ-cache מהיר; הענן הוא מקור האמת ומסונכרן בין כל המכשירים.
+let _cloudLoaded=false,_cloudSyncTimer=null;
+async function _cloudUrl(){
+  if(!auth.user||!auth.user.uid)return null;
+  const token=await auth.getToken();
+  if(!token)return null;
+  return FB+'/users/'+auth.user.uid+'/panel.json?auth='+encodeURIComponent(token);
+}
+async function loadSitesFromCloud(){
+  _cloudLoaded=false;
+  try{
+    const url=await _cloudUrl();
+    if(!url)return;
+    const r=await fetch(url);
+    if(!r.ok)return;
+    const d=await r.json();
+    if(d&&Array.isArray(d.sites)){
+      // הענן מכיל נתונים — מקור האמת
+      localStorage.setItem('deploy_sites',JSON.stringify(d.sites));
+      localStorage.setItem('deleted_ids',JSON.stringify(Array.isArray(d.deletedIds)?d.deletedIds:[]));
+      _cloudLoaded=true;
+    }else{
+      // אין עדיין נתונים בענן — מעלים את המצב המקומי הקיים (מיגרציה ראשונית)
+      _cloudLoaded=true;
+      await pushSitesToCloud();
+    }
+  }catch(e){/* אופליין — נשארים עם ה-cache המקומי */}
+}
+async function pushSitesToCloud(){
+  try{
+    const url=await _cloudUrl();
+    if(!url)return;
+    const payload={
+      sites:JSON.parse(localStorage.getItem('deploy_sites')||'[]'),
+      deletedIds:getDeletedIds(),
+      updatedAt:Date.now()
+    };
+    await fetch(url,{method:'PUT',headers:{'Content-Type':'application/json'},body:JSON.stringify(payload)});
+  }catch(e){/* אופליין — יסונכרן בפעם הבאה */}
+}
+function scheduleCloudSync(){
+  if(!_cloudLoaded)return; // לא דורסים את הענן לפני שסיימנו לטעון ממנו
+  clearTimeout(_cloudSyncTimer);
+  _cloudSyncTimer=setTimeout(pushSitesToCloud,600);
+}
 function getToken(){return localStorage.getItem('gh_deploy_token')||'';}
 
 let _toastTimer;
@@ -1493,7 +1544,11 @@ async function saveEdit(){
   accBtn.onclick=()=>openMyAccount();
   document.body.appendChild(accBtn);
   showTokenStatus();
+  await loadSitesFromCloud();
   renderSites();
+  showTokenStatus();
+  // getSites עשוי למזג אתרי ברירת מחדל חדשים — מסנכרנים כדי לשמר אותם בענן
+  scheduleCloudSync();
 })();
 </script>
 </body>
